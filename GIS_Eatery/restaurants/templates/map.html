@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tra cứu Quán ăn GIS</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #map { height: 600px; width: 100%; }
+    </style>
+</head>
+<body>
+    <h1>Bản đồ Quán ăn</h1>
+    <div id="map"></div>
+
+    <script>
+        // Khởi tạo bản đồ tại tọa độ Việt Nam
+        var map = L.map('map').setView([10.7626, 106.6602], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        // Gọi API lấy dữ liệu quán ăn
+        fetch('/restaurants/api/data/')
+            .then(res => res.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    onEachFeature: function (feature, layer) {
+                        // Hiện thông tin khi click vào điểm
+                        layer.bindPopup("<b>" + feature.properties.name + "</b><br>" + feature.properties.address);
+                    }
+                }).addTo(map);
+            });
+    </script>
+</body>
+</html>
