@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Tra cứu Quán ăn</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #map { height: 100vh; width: 100%; } /* Full màn hình */
+        body { margin: 0; padding: 0; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script>
+    // 1. Khởi tạo bản đồ (Mặc định ở TP.HCM)
+    var map = L.map('map').setView([10.7626, 106.6602], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    // 2. Gọi API để lấy dữ liệu quán ăn
+    fetch('/restaurants/api/restaurants/')
+        .then(response => response.json())
+        .then(data => {
+            // 3. Hiển thị GeoJSON lên bản đồ
+            L.geoJSON(data, {
+                onEachFeature: function (feature, layer) {
+                    // Tạo popup khi click vào điểm
+                    var content = `<h3>${feature.properties.name}</h3>
+                                   <p>${feature.properties.address}</p>
+                                   <button onclick="alert('Tính năng đặt bàn sẽ làm sau!')">Đặt bàn ngay</button>`;
+                    layer.bindPopup(content);
+                }
+            }).addTo(map);
+        })
+        .catch(error => console.error('Lỗi tải dữ liệu:', error));
+</script>
+
+</body>
+</html>

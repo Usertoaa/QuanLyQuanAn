@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Thêm Quán Ăn Mới</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        input[type="text"] { width: 100%; padding: 8px; margin-top: 5px; }
+        /* Chiều cao bản đồ */
+        #map { height: 400px; width: 100%; border: 1px solid #ccc; margin-top: 10px; }
+        button { padding: 10px 20px; background-color: #28a745; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #218838; }
+        .error { color: red; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+    <h2>Thêm Quán Ăn Mới</h2>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label>Tên quán ăn:</label>
+            <input type="text" name="name" required placeholder="Ví dụ: Phở Hòa">
+        </div>
+
+        <div class="form-group">
+            <label>Địa chỉ:</label>
+            <input type="text" name="address" required placeholder="Ví dụ: 260C Pasteur, Q.3">
+        </div>
+
+        <div class="form-group">
+            <label>Chọn vị trí trên bản đồ (Click để chọn):</label>
+            <div id="map"></div>
+            <p><small>Tọa độ đã chọn: <span id="coordinates">Chưa chọn</span></small></p>
+        </div>
+
+        <input type="hidden" id="lat" name="lat">
+        <input type="hidden" id="lng" name="lng">
+
+        <button type="submit">Lưu Quán Ăn</button>
+    </form>
+
+    <script>
+        // 1. Khởi tạo bản đồ tại TP.HCM
+        var map = L.map('map').setView([10.7626, 106.6602], 13);
+
+        // 2. Thêm lớp nền bản đồ từ OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        var marker;
+
+        // 3. Sự kiện khi click vào bản đồ
+        map.on('click', function(e) {
+            // Xóa marker cũ nếu có
+            if (marker) {
+                map.removeLayer(marker);
+            }
+
+            // Thêm marker mới tại vị trí click
+            marker = L.marker(e.latlng).addTo(map);
+
+            // Cập nhật giá trị vào ô input ẩn
+            document.getElementById('lat').value = e.latlng.lat;
+            document.getElementById('lng').value = e.latlng.lng;
+
+            // Hiển thị tọa độ cho người dùng thấy
+            document.getElementById('coordinates').innerText = 
+                e.latlng.lat.toFixed(5) + ", " + e.latlng.lng.toFixed(5);
+        });
+    </script>
+
+</body>
+</html>
