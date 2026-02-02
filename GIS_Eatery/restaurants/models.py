@@ -1,9 +1,21 @@
 from django.contrib.gis.db import models 
 
 class Restaurant(models.Model):
+    DISTRICT_CHOICES = [
+        ('Q1', 'Quận 1'),
+        ('Q3', 'Quận 3'),
+        ('Q4', 'Quận 4'),
+        ('Q5', 'Quận 5'),
+        ('Q7', 'Quận 7'),
+        ('BT', 'Bình Thạnh'),
+        ('PN', 'Phú Nhuận'),
+        ('TP', 'Tân Phú'),
+    ]
     name = models.CharField(max_length=200)
     address = models.CharField(max_length=300)
-    location = models.PointField(srid=4326) # Lưu tọa độ chuẩn GPS
+    district = models.CharField(max_length=10, choices=DISTRICT_CHOICES, default='Q1', verbose_name="Quận")
+    image = models.ImageField(upload_to='restaurant_images/', blank=True, null=True, verbose_name="Ảnh quán")
+    location = models.PointField(srid=4326)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

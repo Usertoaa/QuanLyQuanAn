@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BT FOOD - Tìm quán ăn</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root { --primary-color: #282779; }
+        
+        body { background-color: #f6f6f6; }
+        
+        .navbar { background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .navbar-brand { color: var(--primary-color) !important; font-weight: bold; font-size: 24px; }
+        
+        .hero-search {
+            background: url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070&auto=format&fit=crop') center/cover;
+            padding: 80px 0;
+            position: relative;
+        }
+        .hero-overlay {
+            background: rgba(0,0,0,0.5);
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        }
+        .search-box { position: relative; z-index: 2; max-width: 700px; margin: 0 auto; }
+        
+        /* Card quán ăn */
+        .restaurant-card {
+            border: none;
+            transition: transform 0.2s;
+            background: #fff;
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .restaurant-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .card-img-top { height: 180px; object-fit: cover; }
+        .card-body { padding: 10px; }
+        .res-name { font-weight: bold; color: #333; font-size: 16px; margin-bottom: 5px; display: block; text-decoration: none;}
+        .res-address { color: #888; font-size: 13px; }
+        .res-district { font-size: 12px; background: #eee; padding: 2px 6px; border-radius: 3px; color: #555; }
+        
+        .btn-filter { margin-right: 5px; margin-bottom: 5px; border-radius: 20px; }
+        .btn-filter.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-light sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'index' %}"><i class="fas fa-utensils"></i> BT Food</a>
+            <div class="d-flex">
+                <a href="{% url 'map_view' %}" class="btn btn-outline-danger me-2">
+                    <i class="fas fa-map-marked-alt"></i> Xem Bản Đồ
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="hero-search">
+        <div class="hero-overlay"></div>
+        <div class="container search-box text-center">
+            <h2 class="text-white mb-4">Khám phá địa điểm ăn uống TP.HCM</h2>
+            <form action="." method="GET" class="d-flex bg-white p-2 rounded">
+                <input type="text" name="q" class="form-control border-0 me-2" placeholder="Tìm tên quán, địa chỉ..." value="{{ request.GET.q }}">
+                
+                <select name="district" class="form-select border-0 w-25" style="border-left: 1px solid #ddd !important;">
+                    <option value="">Tất cả quận</option>
+                    {% for code, name in districts %}
+                    <option value="{{ code }}" {% if current_district == code %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+                
+                <button type="submit" class="btn btn-danger px-4"><i class="fas fa-search"></i> Tìm</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="container mt-4">
+        <div class="d-flex flex-wrap">
+            <a href="?" class="btn btn-outline-secondary btn-filter {% if not current_district %}active{% endif %}">Tất cả</a>
+            {% for code, name in districts %}
+            <a href="?district={{ code }}" class="btn btn-outline-secondary btn-filter {% if current_district == code %}active{% endif %}">
+                {{ name }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="container my-4">
+        <h4 class="mb-3">
+            {% if request.GET.q %}Kết quả tìm kiếm: "{{ request.GET.q }}"
+            {% elif current_district %}Danh sách quán tại {{ current_district }}
+            {% else %}Gợi ý hôm nay{% endif %}
+        </h4>
+
+        <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
+            {% for r in restaurants %}
+            <div class="col">
+                <div class="restaurant-card">
+                    {% if r.image %}
+                        <img src="{{ r.image.url }}" class="card-img-top" alt="{{ r.name }}">
+                    {% else %}
+                        <img src="https://placehold.co/600x400?text=No+Image" class="card-img-top" alt="Default">
+                    {% endif %}
+                    
+                    <div class="card-body">
+                        <a href="#" class="res-name text-truncate">{{ r.name }}</a>
+                        <p class="res-address text-truncate mb-1">
+                            <i class="fas fa-map-marker-alt text-danger"></i> {{ r.address }}
+                        </p>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="res-district">{{ r.get_district_display }}</span>
+                            <button class="btn btn-sm btn-success" onclick="alert('Chuyển sang trang đặt bàn...')">Đặt bàn</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center py-5">
+                <img src="https://cdn-icons-png.flaticon.com/512/2748/2748558.png" width="100">
+                <p class="mt-3 text-muted">Không tìm thấy quán ăn nào phù hợp.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <footer class="bg-white border-top py-4 mt-5 text-center">
+        <p class="text-muted">© 2026 GIS Eatery - Đồ án Môn học</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

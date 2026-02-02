@@ -5,8 +5,57 @@ from django.contrib.gis.geos import Point
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_datetime 
 from .models import Restaurant, Table, Reservation
+from django.db.models import Q 
+from django.contrib.auth.decorators import login_required, user_passes_test
 import json
 
+def is_admin(user):
+    return user.is_superuser
+
+@user_passes_test(is_admin) 
+def admin_dashboard(request):
+    # --- 1. Xử lý Thêm Quán Ăn (Logic cũ chuyển sang đây) ---
+    if request.method == "POST":
+        name = request.POST.get('name')
+        address = request.POST.get('address')
+        district = request.POST.get('district')
+        image = request.FILES.get('image') # Lấy file ảnh
+        
+        try:
+            lat = float(request.POST.get('lat'))
+            lng = float(request.POST.get('lng'))
+            pnt = Point(lng, lat, srid=4326)
+            
+            Restaurant.objects.create(
+                name=name, 
+                address=address, 
+                district=district,
+                location=pnt,
+                image=image
+            )
+            # Thông báo thành công (có thể dùng messages framework nếu muốn)
+            return redirect('custom_dashboard')
+        except (ValueError, TypeError):
+            # Xử lý lỗi nếu tọa độ sai
+            pass
+
+    # --- 2. Lấy dữ liệu thống kê ---
+    total_restaurants = Restaurant.objects.count()
+    total_reservations = Reservation.objects.count()
+    total_tables = Table.objects.count()
+    
+    # Lấy danh sách quán mới nhất để hiển thị bảng
+    recent_restaurants = Restaurant.objects.all().order_by('-created_at')[:10]
+
+    context = {
+        'total_restaurants': total_restaurants,
+        'total_reservations': total_reservations,
+        'total_tables': total_tables,
+        'recent_restaurants': recent_restaurants,
+        # Truyền danh sách quận để dùng trong form
+        'districts': Restaurant.DISTRICT_CHOICES, 
+    }
+    return render(request, 'restaurants/dashboard.html', context)
 # --- 1. Chức năng Thêm Quán Ăn (Admin) ---
 def add_restaurant(request):
     if request.method == "POST":
@@ -81,3 +130,30 @@ def api_book_table(request):
             return JsonResponse({'status': 'error', 'message': 'Lỗi server: ' + str(e)})
             
     return JsonResponse({'status': 'error', 'message': 'Yêu cầu không hợp lệ'})
+
+def index(request):
+    # 1. Lấy danh sách quận để hiển thị trong menu lọc
+    districts = Restaurant.DISTRICT_CHOICES
+    
+    # 2. Lấy tất cả quán ăn
+    restaurants = Restaurant.objects.all().order_by('-created_at')
+
+    # 3. Xử lý Tìm kiếm (theo tên hoặc địa chỉ)
+    search_query = request.GET.get('q')
+    if search_query:
+        restaurants = restaurants.filter(
+            Q(name__icontains=search_query) | 
+            Q(address__icontains=search_query)
+        )
+
+    # 4. Xử lý Lọc theo Quận
+    district_filter = request.GET.get('district')
+    if district_filter:
+        restaurants = restaurants.filter(district=district_filter)
+
+    context = {
+        'restaurants': restaurants,
+        'districts': districts,
+        'current_district': district_filter
+    }
+    return render(request, 'restaurants/index.html', context)
