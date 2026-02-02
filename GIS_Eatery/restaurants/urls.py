@@ -7,4 +7,6 @@ urlpatterns = [
     path('', views.map_view, name='user_map'), 
 
     path('api/restaurants/', views.api_get_restaurants, name='api_get_restaurants'),
+
+    path('api/book/', views.api_book_table, name='api_book_table'),
 ]
