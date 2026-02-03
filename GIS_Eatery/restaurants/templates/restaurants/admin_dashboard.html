@@ -1,0 +1,33 @@
+{% extends 'restaurants/base_admin.html' %}
+
+{% block content %}
+<h2 class="mb-4">Tổng quan hệ thống</h2>
+
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="stat-box bg-primary">
+            <p>Tổng số quán</p>
+            <h3>{{ total_restaurants }}</h3>
+            <i class="fas fa-store stat-icon"></i>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-box bg-success">
+            <p>Đơn đặt bàn</p>
+            <h3>{{ total_reservations }}</h3>
+            <i class="fas fa-check-circle stat-icon"></i>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-box bg-warning text-dark">
+            <p>Tổng số bàn ăn</p>
+            <h3>{{ total_tables }}</h3>
+            <i class="fas fa-chair stat-icon"></i>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-info mt-4">
+    <i class="fas fa-info-circle"></i> Chào mừng trở lại trang quản trị! Hãy chọn chức năng ở menu bên trái.
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends 'restaurants/base_admin.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Quản lý Quán ăn</h2>
+    <a href="{% url 'admin_restaurant_add' %}" class="btn btn-danger">
+        <i class="fas fa-plus"></i> Thêm Quán Mới
+    </a>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Hình ảnh</th>
+                        <th>Tên & Địa chỉ</th>
+                        <th>Quận</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in restaurants %}
+                    <tr>
+                        <td width="80">
+                            {% if r.image %}
+                            <img src="{{ r.image.url }}" class="rounded" width="60" height="40" style="object-fit: cover;">
+                            {% else %}
+                            <div class="bg-secondary rounded text-white d-flex align-items-center justify-content-center" style="width:60px; height:40px; font-size:10px;">NO IMG</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="fw-bold text-danger">{{ r.name }}</div>
+                            <small class="text-muted"><i class="fas fa-map-marker-alt"></i> {{ r.address }}</small>
+                        </td>
+                        <td><span class="badge bg-secondary">{{ r.get_district_display }}</span></td>
+                        <td>
+                            <a href="{% url 'admin_restaurant_edit' r.pk %}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            
+                            <a href="{% url 'admin_restaurant_delete' r.pk %}" 
+                               class="btn btn-sm btn-outline-danger"
+                               onclick="return confirm('Bạn có chắc chắn muốn xóa quán {{ r.name }} không?');">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center py-4">Chưa có dữ liệu.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

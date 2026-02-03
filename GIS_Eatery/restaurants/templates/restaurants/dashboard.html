@@ -81,15 +81,12 @@
                             </div>
                             <div class="mb-2">
                                 <label>Địa chỉ:</label>
-                                <input type="text" name="address" class="form-control" required>
-                            </div>
-                            <div class="mb-2">
-                                <label>Quận:</label>
-                                <select name="district" class="form-select">
-                                    {% for code, name in districts %}
-                                    <option value="{{ code }}">{{ name }}</option>
-                                    {% endfor %}
-                                </select>
+                                <input type="text" name="address" id="address-input" class="form-control" placeholder="Nhập địa chỉ (VD: 123 Lê Lợi, Q1...)" required>
+                                <button type="button" class="btn btn-outline-secondary" onclick="geocodeAddress()">
+                                    <i class="fas fa-search-location"></i> Tìm vị trí
+                                </button>
+                                </div>
+                                <small class="text-muted" style="font-size: 12px;">* Nhập địa chỉ rồi bấm nút để ghim lên bản đồ</small>
                             </div>
                             <div class="mb-2">
                                 <label>Ảnh đại diện:</label>
@@ -146,28 +143,74 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        // Bản đồ nhỏ để chọn vị trí
-        var mapPicker = L.map('map-picker').setView([10.7626, 106.6602], 12);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapPicker);
+<script>
+    // 1. Khởi tạo bản đồ
+    var mapPicker = L.map('map-picker').setView([10.7626, 106.6602], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(mapPicker);
 
-        var marker;
+    var marker;
 
-        mapPicker.on('click', function(e) {
-            var lat = e.latlng.lat;
-            var lng = e.latlng.lng;
+    // Hàm cập nhật Input khi có tọa độ mới
+    function updateMarker(lat, lng) {
+        // Xóa marker cũ
+        if (marker) mapPicker.removeLayer(marker);
+        
+        // Tạo marker mới (cho phép kéo thả để chỉnh lại cho chuẩn)
+        marker = L.marker([lat, lng], {draggable: true}).addTo(mapPicker);
+        
+        // Di chuyển bản đồ đến đó
+        mapPicker.setView([lat, lng], 16);
 
-            // Xóa marker cũ nếu có
-            if (marker) mapPicker.removeLayer(marker);
+        // Cập nhật giá trị vào form
+        document.getElementById('lat').value = lat;
+        document.getElementById('lng').value = lng;
+        document.getElementById('coord-display').innerText = `Đã chọn: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
-            // Thêm marker mới
-            marker = L.marker([lat, lng]).addTo(mapPicker);
-
-            // Điền vào input hidden
-            document.getElementById('lat').value = lat;
-            document.getElementById('lng').value = lng;
-            document.getElementById('coord-display').innerText = `Đã chọn: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        // Lắng nghe sự kiện kéo thả marker (để chỉnh vị trí thủ công)
+        marker.on('dragend', function(e) {
+            var position = marker.getLatLng();
+            document.getElementById('lat').value = position.lat;
+            document.getElementById('lng').value = position.lng;
+            document.getElementById('coord-display').innerText = `Đã chọn: ${position.lat.toFixed(5)}, ${position.lng.toFixed(5)}`;
         });
-    </script>
+    }
+
+    // 2. Xử lý click trên bản đồ (Thủ công)
+    mapPicker.on('click', function(e) {
+        updateMarker(e.latlng.lat, e.latlng.lng);
+    });
+
+    // 3. Xử lý "Geocoding" - Tìm tọa độ từ địa chỉ (Tự động)
+    function geocodeAddress() {
+        var address = document.getElementById('address-input').value;
+        if (!address) {
+            alert("Vui lòng nhập địa chỉ trước!");
+            return;
+        }
+
+        // Gọi API miễn phí của Nominatim (OpenStreetMap)
+        var url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.length > 0) {
+                    var lat = parseFloat(data[0].lat);
+                    var lon = parseFloat(data[0].lon);
+                    
+                    // Cập nhật bản đồ
+                    updateMarker(lat, lon);
+                } else {
+                    alert("Không tìm thấy địa chỉ này trên bản đồ. Hãy thử nhập Quận/Huyện rõ hơn!");
+                }
+            })
+            .catch(error => {
+                console.error('Lỗi:', error);
+                alert("Lỗi kết nối đến dịch vụ bản đồ.");
+            });
+    }
+</script>
 </body>
 </html>

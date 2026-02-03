@@ -4,18 +4,25 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    
+    # Trang chính
     path('', views.index, name='index'),
-
-    path('my-admin/', views.admin_dashboard, name='admin_dashboard'),
-
-    path('map/', views.map_view, name='map_view'),
-
-    path('add/', views.add_restaurant, name='add_restaurant'),
 
     path('api/restaurants/', views.api_get_restaurants, name='api_get_restaurants'),
 
     path('api/book/', views.api_book_table, name='api_book_table'),
+
+    # Admin URLs
+    path('admin/', views.admin_dashboard, name='admin_dashboard'),
+
+    path('my-admin/restaurants/', views.admin_restaurant_list, name='admin_restaurant_list'),
+    # Quan Ly Quan An
+    path('my-admin/restaurants/', views.admin_restaurant_list, name='admin_restaurant_list'),
+    path('my-admin/restaurants/add/', views.admin_restaurant_form, name='admin_restaurant_add'),
+    path('my-admin/restaurants/edit/<int:pk>/', views.admin_restaurant_form, name='admin_restaurant_edit'),
+    path('my-admin/restaurants/delete/<int:pk>/', views.admin_restaurant_delete, name='admin_restaurant_delete'),
+    # Quan Ly Dat Ban
+    path('my-admin/bookings/', views.admin_reservations, name='admin_reservations'),
+    
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

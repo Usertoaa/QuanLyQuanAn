@@ -1,4 +1,5 @@
-from django.shortcuts import render, redirect
+from pyexpat.errors import messages
+from django.shortcuts import get_object_or_404, render, redirect
 from django.http import JsonResponse
 from django.core.serializers import serialize
 from django.contrib.gis.geos import Point
@@ -14,65 +15,84 @@ def is_admin(user):
 
 @user_passes_test(is_admin) 
 def admin_dashboard(request):
-    # --- 1. Xử lý Thêm Quán Ăn (Logic cũ chuyển sang đây) ---
+    context = {
+        'total_restaurants': Restaurant.objects.count(),
+        'total_reservations': Reservation.objects.count(),
+        'total_tables': Table.objects.count(),
+        'active_page': 'dashboard' # Để tô màu menu
+    }
+    return render(request, 'restaurants/admin_dashboard.html', context)
+
+@user_passes_test(lambda u: u.is_superuser)
+def admin_restaurant_list(request):
+    restaurants = Restaurant.objects.all().order_by('-created_at')
+    context = {
+        'restaurants': restaurants,
+        'active_page': 'restaurants' # Để tô màu menu
+    }
+    return render(request, 'restaurants/admin_manage.html', context)
+
+@user_passes_test(lambda u: u.is_superuser)
+def admin_reservations(request):
+    # Lấy danh sách mới nhất lên đầu
+    reservations = Reservation.objects.select_related('table', 'table__restaurant').order_by('-booking_time')
+    
+    context = {
+        'reservations': reservations,
+        'active_page': 'reservations'
+    }
+    return render(request, 'restaurants/admin_reservations.html', context)
+
+@user_passes_test(lambda u: u.is_superuser)
+def admin_restaurant_form(request, pk=None):
+    # Nếu có pk -> Là Sửa (Lấy dữ liệu cũ) | Nếu không -> Là Thêm mới
+    if pk:
+        restaurant = get_object_or_404(Restaurant, pk=pk)
+        action_title = "CẬP NHẬT QUÁN ĂN"
+    else:
+        restaurant = None
+        action_title = "THÊM QUÁN MỚI"
+
     if request.method == "POST":
         name = request.POST.get('name')
         address = request.POST.get('address')
         district = request.POST.get('district')
-        image = request.FILES.get('image') # Lấy file ảnh
-        
-        try:
-            lat = float(request.POST.get('lat'))
-            lng = float(request.POST.get('lng'))
-            pnt = Point(lng, lat, srid=4326)
-            
-            Restaurant.objects.create(
-                name=name, 
-                address=address, 
-                district=district,
-                location=pnt,
-                image=image
-            )
-            # Thông báo thành công (có thể dùng messages framework nếu muốn)
-            return redirect('custom_dashboard')
-        except (ValueError, TypeError):
-            # Xử lý lỗi nếu tọa độ sai
-            pass
+        image = request.FILES.get('image')
+        lat = float(request.POST.get('lat'))
+        lng = float(request.POST.get('lng'))
+        pnt = Point(lng, lat, srid=4326)
 
-    # --- 2. Lấy dữ liệu thống kê ---
-    total_restaurants = Restaurant.objects.count()
-    total_reservations = Reservation.objects.count()
-    total_tables = Table.objects.count()
-    
-    # Lấy danh sách quán mới nhất để hiển thị bảng
-    recent_restaurants = Restaurant.objects.all().order_by('-created_at')[:10]
+        if restaurant: # Đang sửa
+            restaurant.name = name
+            restaurant.address = address
+            restaurant.district = district
+            restaurant.location = pnt
+            if image: restaurant.image = image # Chỉ đổi ảnh nếu user upload ảnh mới
+            restaurant.save()
+            messages.success(request, f"Đã cập nhật '{name}' thành công!")
+        else: # Đang thêm
+            Restaurant.objects.create(
+                name=name, address=address, district=district,
+                location=pnt, image=image
+            )
+            messages.success(request, f"Đã thêm '{name}' thành công!")
+
+        return redirect('admin_restaurant_list')
 
     context = {
-        'total_restaurants': total_restaurants,
-        'total_reservations': total_reservations,
-        'total_tables': total_tables,
-        'recent_restaurants': recent_restaurants,
-        # Truyền danh sách quận để dùng trong form
-        'districts': Restaurant.DISTRICT_CHOICES, 
+        'restaurant': restaurant, 
+        'districts': Restaurant.DISTRICT_CHOICES,
+        'action_title': action_title,
+        'active_page': 'restaurants'
     }
-    return render(request, 'restaurants/dashboard.html', context)
-# --- 1. Chức năng Thêm Quán Ăn (Admin) ---
-def add_restaurant(request):
-    if request.method == "POST":
-        name = request.POST.get('name')
-        address = request.POST.get('address')
-        try:
-            lat = float(request.POST.get('lat'))
-            lng = float(request.POST.get('lng'))
-            pnt = Point(lng, lat, srid=4326)
-            
-            Restaurant.objects.create(name=name, address=address, location=pnt)
-            return redirect('add_restaurant')
-        except (ValueError, TypeError):
-            return render(request, 'restaurants/add_restaurant.html', {'error': 'Vui lòng chọn vị trí trên bản đồ!'})
-            
-    return render(request, 'restaurants/add_restaurant.html')
+    return render(request, 'restaurants/admin_form.html', context)
 
+@user_passes_test(lambda u: u.is_superuser)
+def admin_restaurant_delete(request, pk):
+    restaurant = get_object_or_404(Restaurant, pk=pk)
+    restaurant.delete()
+    messages.warning(request, "Đã xóa quán ăn!")
+    return redirect('admin_restaurant_list')
 
 # --- 2. Chức năng Hiển thị Bản đồ (User) ---
 def map_view(request):

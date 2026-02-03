@@ -1,0 +1,113 @@
+{% extends 'restaurants/base_admin.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="d-flex justify-content-between mb-3">
+            <a href="{% url 'admin_restaurant_list' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> Quay lại</a>
+            <h4 class="fw-bold text-danger">{{ action_title }}</h4>
+        </div>
+
+        <div class="card shadow">
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label>Tên quán:</label>
+                                <input type="text" name="name" class="form-control" value="{{ restaurant.name|default:'' }}" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label>Quận:</label>
+                                <select name="district" class="form-select">
+                                    {% for code, name in districts %}
+                                    <option value="{{ code }}" {% if restaurant.district == code %}selected{% endif %}>{{ name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label>Ảnh:</label>
+                                {% if restaurant.image %}
+                                    <div class="mb-2"><img src="{{ restaurant.image.url }}" height="50"></div>
+                                {% endif %}
+                                <input type="file" name="image" class="form-control">
+                            </div>
+
+                            <div class="mb-3">
+                                <label>Địa chỉ:</label>
+                                <div class="input-group">
+                                    <input type="text" id="address-input" name="address" class="form-control" value="{{ restaurant.address|default:'' }}" required>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="geocodeAddress()"><i class="fas fa-search"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="fw-bold text-danger">Vị trí (Kéo thả để chỉnh):</label>
+                            <div id="map-picker" style="height: 300px; border: 1px solid #ddd;"></div>
+                            
+                            <input type="hidden" name="lat" id="lat" value="{{ restaurant.location.y|default:'' }}" required>
+                            <input type="hidden" name="lng" id="lng" value="{{ restaurant.location.x|default:'' }}" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-danger w-100 mt-3 py-2 fw-bold">LƯU DỮ LIỆU</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Khởi tạo map
+    var defaultLat = 10.7626, defaultLng = 106.6602;
+    // Kiểm tra xem đang Sửa hay Thêm (Nếu input hidden có value thì là Sửa)
+    var currentLat = document.getElementById('lat').value;
+    var currentLng = document.getElementById('lng').value;
+    
+    // Nếu có dữ liệu cũ -> Zoom vào đó. Nếu không -> Zoom mặc định
+    var mapCenter = (currentLat && currentLng) ? [currentLat, currentLng] : [defaultLat, defaultLng];
+    var zoomLevel = (currentLat && currentLng) ? 16 : 12;
+
+    var mapPicker = L.map('map-picker').setView(mapCenter, zoomLevel);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapPicker);
+
+    var marker;
+
+    function updateMarker(lat, lng) {
+        if (marker) mapPicker.removeLayer(marker);
+        marker = L.marker([lat, lng], {draggable: true}).addTo(mapPicker);
+        mapPicker.setView([lat, lng], 16);
+        
+        document.getElementById('lat').value = lat;
+        document.getElementById('lng').value = lng;
+        
+        marker.on('dragend', function(e) {
+            var pos = marker.getLatLng();
+            document.getElementById('lat').value = pos.lat;
+            document.getElementById('lng').value = pos.lng;
+        });
+    }
+
+    // Nếu đang Sửa -> Hiển thị marker cũ ngay lập tức
+    if (currentLat && currentLng) {
+        updateMarker(parseFloat(currentLat), parseFloat(currentLng));
+    }
+
+    mapPicker.on('click', function(e) { updateMarker(e.latlng.lat, e.latlng.lng); });
+
+    function geocodeAddress() {
+        var address = document.getElementById('address-input').value;
+        if (!address) return alert("Chưa nhập địa chỉ!");
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address + ", Ho Chi Minh City")}`)
+        .then(r => r.json()).then(data => {
+            if(data.length > 0) updateMarker(parseFloat(data[0].lat), parseFloat(data[0].lon));
+            else alert("Không tìm thấy!");
+        });
+    }
+</script>
+{% endblock %}
