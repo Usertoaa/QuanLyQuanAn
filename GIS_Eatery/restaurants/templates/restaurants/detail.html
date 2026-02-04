@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ restaurant.name }} - Chi tiết</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body { background-color: #f6f6f6; }
+        .hero-image {
+            width: 100%; height: 400px; object-fit: cover;
+            border-radius: 0 0 10px 10px;
+        }
+        .res-title { font-weight: bold; color: #333; margin-top: 20px; }
+        .res-address { color: #555; font-size: 1.1rem; }
+        .booking-card {
+            background: white; padding: 20px; border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            position: sticky; top: 20px; /* Giữ khung đặt bàn trôi theo khi cuộn */
+        }
+        #mini-map { height: 250px; width: 100%; border-radius: 5px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-light bg-white shadow-sm">
+        <div class="container">
+            <a class="navbar-brand text-danger fw-bold" href="{% url 'index' %}">
+                <i class="fas fa-chevron-left"></i> Quay lại Trang chủ
+            </a>
+        </div>
+    </nav>
+
+    <div class="container pb-5">
+        {% if restaurant.image %}
+            <img src="{{ restaurant.image.url }}" class="hero-image shadow-sm">
+        {% else %}
+            <img src="https://placehold.co/1200x400?text=No+Image" class="hero-image shadow-sm">
+        {% endif %}
+
+        <div class="row mt-4">
+            <div class="col-md-8">
+                <div class="bg-white p-4 rounded shadow-sm">
+                    <h1 class="res-title">{{ restaurant.name }}</h1>
+                    <p class="res-address"><i class="fas fa-map-marker-alt text-danger"></i> {{ restaurant.address }}</p>
+                    <span class="badge bg-success">{{ restaurant.get_district_display }}</span>
+                    <hr>
+                    
+                    <h5>Giới thiệu</h5>
+                    <p>Chào mừng đến với {{ restaurant.name }}. Chúng tôi phục vụ các món ăn ngon miệng trong không gian ấm cúng. Hãy đặt bàn ngay để thưởng thức!</p>
+                    
+                    <h5 class="mt-4">Tiện ích</h5>
+                    <div class="d-flex gap-3 text-secondary">
+                        <span><i class="fas fa-wifi"></i> Wifi miễn phí</span>
+                        <span><i class="fas fa-snowflake"></i> Máy lạnh</span>
+                        <span><i class="fas fa-parking"></i> Chỗ đậu xe</span>
+                        <span><i class="fas fa-credit-card"></i> Thanh toán thẻ</span>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded shadow-sm mt-4">
+                    <h5>Đánh giá & Bình luận</h5>
+                    <div class="alert alert-light text-center py-4">
+                        <i class="fas fa-comments fa-2x text-muted mb-2"></i>
+                        <p>Chưa có bình luận nào. Hãy là người đầu tiên đặt bàn và trải nghiệm!</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="booking-card">
+                    <h4 class="text-danger fw-bold text-center">ĐẶT BÀN NGAY</h4>
+                    <hr>
+                    
+                    <form id="booking-form" onsubmit="submitBooking(event)">
+                        <input type="hidden" name="restaurant_id" value="{{ restaurant.id }}">
+                        
+                        <div class="mb-3">
+                            <label class="fw-bold">Họ tên của bạn:</label>
+                            <input type="text" name="name" class="form-control" placeholder="VD: Nguyễn Văn A" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="fw-bold">Thời gian đến:</label>
+                            <input type="datetime-local" name="time" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="fw-bold">Số người:</label>
+                            <select name="people" class="form-select">
+                                <option value="2">2 người</option>
+                                <option value="4" selected>4 người</option>
+                                <option value="6">6 người</option>
+                                <option value="10">10+ người</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-danger w-100 fw-bold py-2">
+                            XÁC NHẬN ĐẶT BÀN
+                        </button>
+                    </form>
+                    
+                    <div id="msg-box" class="mt-3 text-center fw-bold"></div>
+
+                    <div id="mini-map"></div>
+                    <small class="text-muted text-center d-block mt-1">Vị trí quán trên bản đồ</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // 1. Hiển thị Mini Map
+       var lat = parseFloat("{{ restaurant.location.y|stringformat:'f' }}");
+       var lng = parseFloat("{{ restaurant.location.x|stringformat:'f' }}");
+        
+        var map = L.map('mini-map').setView([lat, lng], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        
+        L.marker([lat, lng]).addTo(map)
+            .bindPopup("<b>{{ restaurant.name }}</b>").openPopup();
+
+        // 2. Xử lý Đặt bàn (AJAX - Không load lại trang)
+        function submitBooking(e) {
+            e.preventDefault();
+            var form = e.target;
+            var formData = new FormData(form);
+            var btn = form.querySelector('button');
+            var msgBox = document.getElementById('msg-box');
+
+            btn.disabled = true; // Khóa nút để tránh bấm nhiều lần
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+
+            fetch('/api/book/', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    msgBox.className = "mt-3 text-center fw-bold text-success";
+                    msgBox.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
+                    form.reset(); // Xóa trắng form
+                } else {
+                    msgBox.className = "mt-3 text-center fw-bold text-danger";
+                    msgBox.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + data.message;
+                }
+                btn.disabled = false;
+                btn.innerHTML = 'XÁC NHẬN ĐẶT BÀN';
+            })
+            .catch(err => {
+                alert("Lỗi kết nối Server!");
+                btn.disabled = false;
+                btn.innerHTML = 'XÁC NHẬN ĐẶT BÀN';
+            });
+        }
+    </script>
+</body>
+</html>

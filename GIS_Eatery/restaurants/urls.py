@@ -22,6 +22,8 @@ urlpatterns = [
     path('my-admin/restaurants/delete/<int:pk>/', views.admin_restaurant_delete, name='admin_restaurant_delete'),
     # Quan Ly Dat Ban
     path('my-admin/bookings/', views.admin_reservations, name='admin_reservations'),
+
+    path('restaurant/<int:pk>/', views.restaurant_detail, name='restaurant_detail'),
     
 ]
 if settings.DEBUG:

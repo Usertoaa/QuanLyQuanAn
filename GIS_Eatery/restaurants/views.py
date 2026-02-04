@@ -177,3 +177,12 @@ def index(request):
         'current_district': district_filter
     }
     return render(request, 'restaurants/index.html', context)
+
+
+def restaurant_detail(request, pk):
+    restaurant = get_object_or_404(Restaurant, pk=pk)
+    
+    context = {
+        'restaurant': restaurant,
+    }
+    return render(request, 'restaurants/detail.html', context)
