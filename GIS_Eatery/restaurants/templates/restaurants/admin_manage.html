@@ -45,6 +45,9 @@
                         </td>
                         <td><span class="badge bg-secondary">{{ r.get_district_display }}</span></td>
                         <td>
+                            <a href="{% url 'admin_menu_list' r.pk %}" class="btn btn-sm btn-info text-white me-1" title="Quản lý Thực đơn">
+                                <i class="fas fa-book-open"></i> Menu
+                            </a>
                             <a href="{% url 'admin_restaurant_edit' r.pk %}" class="btn btn-sm btn-primary">
                                 <i class="fas fa-edit"></i>
                             </a>

@@ -1,10 +1,18 @@
 from django.contrib.gis import admin
-from .models import Restaurant, Table, Reservation
+from .models import Dish, Restaurant, Table, Reservation
+
+
+class DishInline(admin.TabularInline):
+    model = Dish
+    extra = 1
 
 @admin.register(Restaurant)
 class RestaurantAdmin(admin.GISModelAdmin):
-    list_display = ('name', 'address', 'location')
-    search_fields = ('name',)
+   list_display = ('name', 'address', 'district', 'created_at')
+   search_fields = ('name', 'address')
+   list_filter = ('district',)
+    
+   inlines = [DishInline]
 
 @admin.register(Table)
 class TableAdmin(admin.ModelAdmin):

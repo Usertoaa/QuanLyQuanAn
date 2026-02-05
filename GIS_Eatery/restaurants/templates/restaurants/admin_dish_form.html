@@ -1,0 +1,50 @@
+{% extends 'restaurants/base_admin.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white fw-bold">
+                {{ action|upper }} MÓN ĂN - {{ restaurant.name }}
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label>Tên món:</label>
+                        <input type="text" name="name" class="form-control" value="{{ dish.name|default:'' }}" required>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label>Giá tiền (VNĐ):</label>
+                            <input type="number" name="price" class="form-control" value="{{ dish.price|default:'' }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label>Ảnh món:</label>
+                            <input type="file" name="image" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Mô tả ngắn:</label>
+                        <textarea name="description" class="form-control" rows="2">{{ dish.description|default:'' }}</textarea>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" name="is_available" id="avail" 
+                               {% if not dish or dish.is_available %}checked{% endif %}>
+                        <label class="form-check-label" for="avail">Đang bán (Còn hàng)</label>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'admin_menu_list' restaurant.pk %}" class="btn btn-secondary">Hủy</a>
+                        <button type="submit" class="btn btn-success fw-bold">Lưu Món Ăn</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

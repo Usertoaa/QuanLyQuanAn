@@ -5,9 +5,11 @@ from django.core.serializers import serialize
 from django.contrib.gis.geos import Point
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_datetime 
-from .models import Restaurant, Table, Reservation
+from .models import Restaurant, Table, Reservation, Dish
 from django.db.models import Q 
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.gis.measure import D
+from django.contrib.gis.db.models.functions import Distance
 import json
 
 def is_admin(user):
@@ -186,3 +188,100 @@ def restaurant_detail(request, pk):
         'restaurant': restaurant,
     }
     return render(request, 'restaurants/detail.html', context)
+# Tool tìm kím quán ăn gần vị trí người dùng
+def api_nearby_restaurants(request):
+    try:
+        lat = float(request.GET.get('lat'))
+        lng = float(request.GET.get('lng'))
+        radius = float(request.GET.get('radius', 5)) # Mặc định tìm 5km
+
+        user_location = Point(lng, lat, srid=4326)
+
+        # Lọc quán trong bán kính và sắp xếp theo khoảng cách
+        restaurants = Restaurant.objects.filter(
+            location__distance_lte=(user_location, D(km=radius))
+        ).annotate(
+            distance=Distance('location', user_location)
+        ).order_by('distance')
+
+        data = []
+        for r in restaurants:
+            # Xử lý ảnh: Nếu không có ảnh thì dùng ảnh placeholder
+            img_url = r.image.url if r.image else "https://placehold.co/600x400?text=No+Image"
+            
+            data.append({
+                'id': r.id,
+                'name': r.name,
+                'address': r.address,
+                'district': r.get_district_display(),
+                'distance': round(r.distance.km, 1), # VD: 1.2 km
+                'image': img_url,
+                'lat': r.location.y,
+                'lng': r.location.x
+            })
+        
+        return JsonResponse(data, safe=False)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+        
+def user_map(request):
+    return render(request, 'restaurants/user_map.html')
+
+
+# Xem Danh sách Món ăn của 1 Quán 
+@user_passes_test(lambda u: u.is_superuser)
+def admin_menu_list(request, pk):
+    restaurant = get_object_or_404(Restaurant, pk=pk)
+    dishes = restaurant.dishes.all() 
+    
+    context = {
+        'restaurant': restaurant,
+        'dishes': dishes,
+    }
+    return render(request, 'restaurants/admin_menu_list.html', context)
+
+@user_passes_test(lambda u: u.is_superuser)
+def admin_dish_form(request, pk):
+    restaurant = get_object_or_404(Restaurant, pk=pk)
+    
+    if request.method == "POST":
+        Dish.objects.create(
+            restaurant=restaurant,
+            name=request.POST.get('name'),
+            price=request.POST.get('price'),
+            description=request.POST.get('description'),
+            image=request.FILES.get('image'),
+            is_available=request.POST.get('is_available') == 'on'
+        )
+        messages.success(request, "Đã thêm món mới!")
+        return redirect('admin_menu_list', pk=pk)
+
+    return render(request, 'restaurants/admin_dish_form.html', {'restaurant': restaurant, 'action': 'Thêm'})
+
+@user_passes_test(lambda u: u.is_superuser)
+def admin_dish_edit(request, dish_id):
+    dish = get_object_or_404(Dish, pk=dish_id)
+    restaurant = dish.restaurant
+
+    if request.method == "POST":
+        dish.name = request.POST.get('name')
+        dish.price = request.POST.get('price')
+        dish.description = request.POST.get('description')
+        if request.FILES.get('image'):
+            dish.image = request.FILES.get('image')
+        dish.is_available = request.POST.get('is_available') == 'on'
+        dish.save()
+        
+        messages.success(request, "Cập nhật món thành công!")
+        return redirect('admin_menu_list', pk=restaurant.pk)
+
+    return render(request, 'restaurants/admin_dish_form.html', {'restaurant': restaurant, 'dish': dish, 'action': 'Sửa'})
+
+@user_passes_test(lambda u: u.is_superuser)
+def admin_dish_delete(request, dish_id):
+    dish = get_object_or_404(Dish, pk=dish_id)
+    restaurant_id = dish.restaurant.pk
+    dish.delete()
+    messages.warning(request, "Đã xóa món ăn!")
+    return redirect('admin_menu_list', pk=restaurant_id)
+        

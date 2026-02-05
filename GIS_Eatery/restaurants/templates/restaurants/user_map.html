@@ -2,99 +2,178 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Bản đồ Quán ăn & Đặt bàn</title>
+    <title>Bản đồ Thông minh - GIS Eatery</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
     <style>
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        #map { height: 100vh; width: 100%; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; }
         
-        /* Style cho Popup đẹp hơn */
-        .popup-content { min-width: 250px; }
-        .popup-content h3 { margin-top: 0; color: #d9534f; }
-        .popup-content p { margin: 5px 0; font-size: 14px; }
-        .booking-form { background: #f9f9f9; padding: 10px; border-radius: 5px; border: 1px solid #ddd; margin-top: 10px; }
-        .booking-form input { width: 100%; padding: 8px; margin-bottom: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        .booking-form button { width: 100%; background-color: #28a745; color: white; padding: 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .booking-form button:hover { background-color: #218838; }
-        .msg-box { margin-top: 8px; font-weight: bold; font-size: 13px; text-align: center; }
+        #map { height: 100%; width: 100%; }
+
+        /* Thanh điều khiển nổi trên bản đồ */
+        .control-panel {
+            position: absolute; top: 20px; right: 20px; z-index: 1000;
+            background: white; padding: 15px; border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2); width: 280px;
+        }
+        .control-panel h4 { margin-top: 0; color: #cf2127; }
+        .btn-scan {
+            width: 100%; background: #cf2127; color: white; border: none;
+            padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 10px;
+        }
+        .btn-scan:hover { background: #b01b20; }
+        
+        /* Popup Style */
+        .popup-img { width: 100%; height: 120px; object-fit: cover; border-radius: 5px; margin-bottom: 5px; }
+        .btn-route {
+            background: #28a745; color: white; border: none; padding: 5px 10px;
+            border-radius: 3px; cursor: pointer; width: 100%; margin-top: 5px;
+        }
     </style>
 </head>
 <body>
 
-<div id="map"></div>
+    <div class="control-panel">
+        <h4><i class="fas fa-radar"></i> Tìm quanh đây</h4>
+        
+        <label>Bán kính (km):</label>
+        <input type="number" id="radius" class="form-control" value="2" min="1" max="50" style="width: 100%; padding: 5px; margin-bottom: 5px;">
+        <small class="text-muted">Nhập số km muốn quét</small>
+
+        <button class="btn-scan" onclick="scanNearby()">
+            <i class="fas fa-search-location"></i> QUÉT QUÁN ĂN
+        </button>
+        
+        <hr>
+        <div id="status">Đang đợi vị trí...</div>
+        <a href="{% url 'index' %}" style="display:block; text-align:center; margin-top:10px; text-decoration:none;">Quay lại Trang chủ</a>
+    </div>
+
+    <div id="map"></div>
 
 <script>
-    // 1. Khởi tạo bản đồ (TP.HCM)
+    // 1. Khởi tạo bản đồ
     var map = L.map('map').setView([10.7626, 106.6602], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM' }).addTo(map);
 
-    // 2. Gọi API để lấy danh sách quán ăn
-    fetch('/restaurants/api/restaurants/')
-        .then(response => response.json())
-        .then(data => {
-            // 3. Hiển thị dữ liệu GeoJSON lên bản đồ
-            L.geoJSON(data, {
-                onEachFeature: function (feature, layer) {
-                    // Lấy ID của quán
-                    // Lưu ý: Nếu GeoJSON của bạn ID nằm ở properties.pk thì sửa thành feature.properties.pk
-                    // Mặc định Django serialize 'geojson' sẽ để ID ở feature.id
-                    var restaurantId = feature.id; 
+    var userMarker = null;
+    var searchCircle = null;
+    var markersLayer = L.layerGroup().addTo(map); // Layer chứa các quán ăn
+    var routingControl = null; // Biến lưu đường đi
+    var userLat = null, userLng = null;
 
-                    // Nội dung HTML của Popup
-                    var content = `
-                        <div class="popup-content">
-                            <h3>🍽️ ${feature.properties.name}</h3>
-                            <p>📍 ${feature.properties.address}</p>
-                            <hr>
-                            <div id="form-container-${restaurantId}">
-                                <b>Đặt bàn nhanh:</b>
-                                <form class="booking-form" onsubmit="submitBooking(event, ${restaurantId})">
-                                    <input type="text" name="name" placeholder="Tên của bạn" required>
-                                    <input type="datetime-local" name="time" required>
-                                    <button type="submit">Xác nhận đặt bàn</button>
-                                </form>
-                            </div>
-                            <p id="msg-${restaurantId}" class="msg-box"></p>
-                        </div>
-                    `;
-                    layer.bindPopup(content);
-                }
-            }).addTo(map);
-        })
-        .catch(error => console.error('Lỗi tải dữ liệu:', error));
+    // 2. Lấy vị trí người dùng (GPS trình duyệt)
+    map.locate({setView: true, maxZoom: 14});
 
-    // 4. Hàm xử lý khi bấm nút Đặt bàn
-    function submitBooking(e, restaurantId) {
-        e.preventDefault(); // Chặn trang web load lại
+    map.on('locationfound', function(e) {
+        userLat = e.latlng.lat;
+        userLng = e.latlng.lng;
         
-        var form = e.target;
-        var formData = new FormData(form);
-        formData.append('restaurant_id', restaurantId);
+        document.getElementById('status').innerText = "📍 Đã thấy bạn!";
+        
+        // Vẽ marker người dùng
+        if (userMarker) map.removeLayer(userMarker);
+        userMarker = L.marker(e.latlng, {
+            icon: L.divIcon({
+                className: 'user-icon',
+                html: '<i class="fas fa-user-circle" style="font-size:30px; color:blue; background:white; border-radius:50%;"></i>',
+                iconSize: [30, 30]
+            })
+        }).addTo(map).bindPopup("Bạn đang ở đây").openPopup();
+    });
 
-        // Gửi dữ liệu sang API đặt bàn
-        fetch('/restaurants/api/book/', {
-            method: 'POST',
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-            var msgBox = document.getElementById(`msg-${restaurantId}`);
-            
-            if (data.status === 'success') {
-                msgBox.style.color = 'green';
-                msgBox.innerText = "✅ " + data.message;
-                // Ẩn form đi sau khi đặt thành công
-                document.getElementById(`form-container-${restaurantId}`).style.display = 'none';
-            } else {
-                msgBox.style.color = 'red';
-                msgBox.innerText = "❌ " + data.message;
-            }
-        })
-        .catch(err => alert("Lỗi kết nối đến server!"));
+    map.on('locationerror', function(e) {
+        document.getElementById('status').innerText = "⚠️ Không lấy được vị trí GPS.";
+        alert("Vui lòng bật GPS trình duyệt!");
+    });
+
+    // 3. Hàm QUÉT QUÁN ĂN (Radius Search)
+    function scanNearby() {
+        if (!userLat) return alert("Chưa có vị trí của bạn!");
+        
+        var radiusKm = document.getElementById('radius').value;
+        var radiusMeters = radiusKm * 1000;
+
+        document.getElementById('status').innerText = `🔄 Đang quét trong ${radiusKm}km...`;
+
+        // Vẽ vòng tròn bán kính
+        if (searchCircle) map.removeLayer(searchCircle);
+        searchCircle = L.circle([userLat, userLng], {
+            color: 'red', fillColor: '#f03', fillOpacity: 0.1, radius: radiusMeters
+        }).addTo(map);
+        map.fitBounds(searchCircle.getBounds()); // Zoom vừa vòng tròn
+
+        // Gọi API Backend
+        fetch(`/api/nearby/?lat=${userLat}&lng=${userLng}&radius=${radiusKm}`)
+            .then(res => res.json())
+            .then(data => {
+                markersLayer.clearLayers(); // Xóa quán cũ
+
+                if (data.length === 0) {
+                    document.getElementById('status').innerText = "❌ Không tìm thấy quán nào.";
+                    return;
+                }
+
+                document.getElementById('status').innerText = `✅ Tìm thấy ${data.length} quán!`;
+
+                // Duyệt qua từng quán và ghim lên bản đồ
+                data.forEach(r => {
+                    var imgHtml = r.image ? `<img src="${r.image}" class="popup-img">` : '';
+                    
+                    var popupContent = `
+                        ${imgHtml}
+                        <b>${r.name}</b><br>
+                        <i class="fas fa-map-marker-alt text-danger"></i> ${r.address}<br>
+                        <small>Cách bạn: <b>${r.distance} km</b></small>
+                        <hr style="margin:5px 0">
+                        <button class="btn-route" onclick="getDirections(${r.lat}, ${r.lng})">
+                            <i class="fas fa-directions"></i> Chỉ đường ngay
+                        </button>
+                    `;
+
+                    L.marker([r.lat, r.lng])
+                        .addTo(markersLayer)
+                        .bindPopup(popupContent);
+                });
+            })
+            .catch(err => console.error(err));
+    }
+
+    // 4. Hàm CHỈ ĐƯỜNG (Routing)
+    function getDirections(destLat, destLng) {
+        if (!userLat) return alert("Cần vị trí của bạn để chỉ đường!");
+
+        // Xóa đường đi cũ nếu có
+        if (routingControl) {
+            map.removeControl(routingControl);
+        }
+
+        // Tạo đường đi mới từ A -> B
+        routingControl = L.Routing.control({
+            waypoints: [
+                L.latLng(userLat, userLng), // Điểm xuất phát (User)
+                L.latLng(destLat, destLng)  // Điểm đến (Quán ăn)
+            ],
+            routeWhileDragging: false,
+            // Cấu hình ngôn ngữ tiếng Việt (cơ bản)
+            language: 'en', 
+            showAlternatives: true,
+            lineOptions: {
+                styles: [{color: 'blue', opacity: 0.6, weight: 5}]
+            },
+            createMarker: function() { return null; } // Không tạo thêm marker thừa
+        }).addTo(map);
+        
+        // Đóng popup để nhìn cho rõ
+        map.closePopup();
     }
 </script>
 
