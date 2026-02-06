@@ -2,11 +2,13 @@ from django.urls import path
 from . import views
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib.auth import views as auth_views
 
 urlpatterns = [
     # Trang chính
     path('', views.index, name='index'),
     path('map/', views.user_map, name='user_map'),
+    path('my-history/', views.user_booking_history, name='user_booking_history'),
     # API URLs
     path('api/restaurants/', views.api_get_restaurants, name='api_get_restaurants'),
     path('api/nearby/', views.api_nearby_restaurants, name='api_nearby'),
@@ -22,13 +24,19 @@ urlpatterns = [
     path('my-admin/restaurants/edit/<int:pk>/', views.admin_restaurant_form, name='admin_restaurant_edit'),
     path('my-admin/restaurants/delete/<int:pk>/', views.admin_restaurant_delete, name='admin_restaurant_delete'),
     # Quan Ly Dat Ban
-    path('my-admin/bookings/', views.admin_reservations, name='admin_reservations'),
+    path('my-admin/all-bookings/', views.admin_all_bookings, name='admin_reservations'),
+    path('my-admin/restaurant/<int:pk>/bookings/', views.admin_booking_list, name='admin_booking_list'),
     path('restaurant/<int:pk>/', views.restaurant_detail, name='restaurant_detail'),
+    path('my-admin/booking/update/<int:booking_id>/<str:status>/', views.admin_update_booking_status, name='admin_update_booking_status'),
     # Quan Ly Mon An
     path('my-admin/restaurant/<int:pk>/menu/', views.admin_menu_list, name='admin_menu_list'),
     path('my-admin/restaurant/<int:pk>/menu/add/', views.admin_dish_form, name='admin_dish_add'),
     path('my-admin/menu/edit/<int:dish_id>/', views.admin_dish_edit, name='admin_dish_edit'),
     path('my-admin/menu/delete/<int:dish_id>/', views.admin_dish_delete, name='admin_dish_delete'),
+    # Dang Ky / Dang Nhap / Dang Xuat
+    path('register/', views.register_view, name='register'),
+    path('login/', auth_views.LoginView.as_view(template_name='restaurants/login.html'), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(next_page='index'), name='logout'),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

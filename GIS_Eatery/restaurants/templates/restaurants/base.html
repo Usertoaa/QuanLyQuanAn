@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BT Food - Ẩm thực quanh ta</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --primary-color: #cf2127; }
+        body { background-color: #f6f6f6; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; min-height: 100vh; }
+        .navbar { background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .navbar-brand { color: var(--primary-color) !important; font-weight: bold; font-size: 24px; }
+        footer { margin-top: auto; }
+        /* CSS riêng cho Form đăng nhập/đăng ký đẹp hơn */
+        .auth-card { border: none; border-radius: 10px; overflow: hidden; }
+        .auth-header { background: var(--primary-color); color: white; padding: 20px; text-align: center; font-weight: bold; font-size: 1.2rem; }
+        .form-control:focus { border-color: var(--primary-color); box-shadow: 0 0 0 0.2rem rgba(207, 33, 39, 0.25); }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'index' %}"><i class="fas fa-utensils"></i> BT Food</a>
+            <div class="d-flex gap-2 align-items-center">
+                {% if user.is_authenticated %}
+                    <div class="dropdown">
+                        <button class="btn btn-light dropdown-toggle border shadow-sm btn-sm" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle"></i> {{ user.username }}
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            {% if user.is_superuser %}
+                            <li><a class="dropdown-item" href="{% url 'admin_dashboard' %}">Quản trị</a></li>
+                            {% endif %}
+                            <li><a class="dropdown-item" href="#">Lịch sử</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form action="{% url 'logout' %}" method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item text-danger">Đăng xuất</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                {% else %}
+                    <a href="{% url 'login' %}" class="btn btn-outline-danger btn-sm fw-bold">Đăng nhập</a>
+                    <a href="{% url 'register' %}" class="btn btn-danger btn-sm fw-bold">Đăng ký</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    {% block content %}
+    {% endblock %}
+
+    <footer class="bg-white border-top py-4 mt-auto">
+        <div class="container text-center"><p class="text-muted mb-0">© 2026 BT Food</p></div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,62 @@
+{% extends 'restaurants/base.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h4 class="mb-0 fw-bold text-danger"><i class="fas fa-history"></i> Lịch sử đặt bàn của bạn</h4>
+        </div>
+        <div class="card-body">
+            {% if bookings %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Thời gian</th>
+                                <th>Quán ăn</th>
+                                <th>Chi tiết</th>
+                                <th>Trạng thái</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for b in bookings %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ b.booking_time|date:"H:i" }}</div>
+                                    <small class="text-muted">{{ b.booking_time|date:"d/m/Y" }}</small>
+                                </td>
+                                <td>
+                                    <a href="{% url 'restaurant_detail' b.table.restaurant.id %}" class="fw-bold text-decoration-none text-dark">
+                                        {{ b.table.restaurant.name }}
+                                    </a>
+                                    <div class="small text-muted"><i class="fas fa-map-marker-alt"></i> {{ b.table.restaurant.address }}</div>
+                                </td>
+                                <td>
+                                    <div><i class="fas fa-users"></i> {{ b.people_count }} người</div>
+                                    <div class="text-muted small">Tên: {{ b.customer_name }}</div>
+                                </td>
+                                <td>
+                                    {% if b.status == 'pending' %}
+                                        <span class="badge bg-warning text-dark">⏳ Đang chờ duyệt</span>
+                                    {% elif b.status == 'confirmed' %}
+                                        <span class="badge bg-success">✅ Đặt thành công</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">❌ Đã hủy</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <img src="https://cdn-icons-png.flaticon.com/512/11433/11433306.png" width="100" class="mb-3 opacity-50">
+                    <p class="text-muted">Bạn chưa đặt bàn lần nào.</p>
+                    <a href="{% url 'index' %}" class="btn btn-danger">Tìm quán ngay</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -30,6 +31,33 @@
         <div class="container">
             <a class="navbar-brand" href="{% url 'index' %}"><i class="fas fa-utensils"></i> BT Food</a>
             
+            <div class="d-flex gap-2 align-items-center">
+                
+                {% if user.is_authenticated %}
+                    <div class="dropdown">
+                        <button class="btn btn-light dropdown-toggle border shadow-sm btn-sm" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle text-secondary"></i> Xin chào, <b>{{ user.username }}</b>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            {% if user.is_superuser %}
+                            <li><a class="dropdown-item" href="{% url 'admin_dashboard' %}"><i class="fas fa-cog text-primary"></i> Trang Quản trị</a></li>
+                            {% endif %}
+                            <li><a class="dropdown-item" href="{% url 'user_booking_history' %}"><i class="fas fa-history text-success"></i> Lịch sử đặt bàn</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form action="{% url 'logout' %}" method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item text-danger"><i class="fas fa-sign-out-alt"></i> Đăng xuất</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                {% else %}
+                    <a href="{% url 'login' %}" class="btn btn-danger btn-sm fw-bold shadow-sm">
+                        <i class="fas fa-sign-in-alt"></i> Đăng nhập
+                    </a>
+                {% endif %}
+            </div>
         </div>
     </nav>
 
@@ -44,7 +72,6 @@
     </div>
 
     <div class="container">
-        
         <div class="d-flex align-items-center justify-content-between mb-3">
             <h4 class="fw-bold border-start border-4 border-danger ps-2 mb-0">
                 {% if request.GET.q %}Kết quả: "{{ request.GET.q }}"{% else %}Khám phá{% endif %}
@@ -66,6 +93,7 @@
         </div>
 
         <div id="restaurant-grid" class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4 mb-5">
+            {% block content %}
             {% for r in restaurants %}
             <div class="col">
                 <div class="restaurant-card card h-100 shadow-sm border-0">
@@ -95,11 +123,12 @@
                 <p class="text-muted">Không tìm thấy quán ăn nào.</p>
             </div>
             {% endfor %}
+            {% endblock %}
         </div>
     </div>
 
     <footer class="bg-white border-top py-4 mt-auto">
-        <div class="container text-center"><p class="text-muted mb-0">© 2026 GIS Eatery</p></div>
+        <div class="container text-center"><p class="text-muted mb-0">© 2026 BT Food</p></div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

@@ -1,4 +1,5 @@
 from django.contrib.gis.db import models 
+from django.contrib.auth.models import User
 
 class Restaurant(models.Model):
     DISTRICT_CHOICES = [
@@ -40,7 +41,18 @@ class Reservation(models.Model):
     customer_name = models.CharField(max_length=100)
     booking_time = models.DateTimeField()
     number_of_people = models.IntegerField()
+    STATUS_CHOICES = [
+        ('pending', '⏳ Chờ xác nhận'),
+        ('confirmed', '✅ Đã duyệt'),
+        ('cancelled', '❌ Đã hủy'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="Trạng thái")
 
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, verbose_name="Tài khoản đặt")
+
+    def __str__(self):
+        return f"{self.customer_name} - {self.booking_time}"
+    
 class Dish(models.Model):
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='dishes')
     name = models.CharField(max_length=200, verbose_name="Tên món")

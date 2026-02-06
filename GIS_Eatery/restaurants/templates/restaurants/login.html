@@ -1,0 +1,36 @@
+{% extends 'restaurants/base.html' %} {% block content %} 
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card shadow">
+                <div class="card-header bg-danger text-white text-center fw-bold">
+                    ĐĂNG NHẬP
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST">
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                            <div class="alert alert-danger small">Tên đăng nhập hoặc mật khẩu không đúng!</div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label class="fw-bold small">Tên đăng nhập:</label>
+                            <input type="text" name="username" class="form-control" required autofocus>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold small">Mật khẩu:</label>
+                            <input type="password" name="password" class="form-control" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-danger w-100 fw-bold">ĐĂNG NHẬP</button>
+                    </form>
+                </div>
+                <div class="card-footer text-center bg-white">
+                    <small>Chưa có tài khoản? <a href="{% url 'register' %}" class="text-danger fw-bold">Đăng ký ngay</a></small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

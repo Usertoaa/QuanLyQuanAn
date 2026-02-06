@@ -1,0 +1,44 @@
+{% extends 'restaurants/base.html' %} {% block content %}
+<div class="container py-5" style="background-color: #f6f6f6;">
+    <div class="row justify-content-center">
+        <div class="col-md-5 col-lg-4">
+            <div class="card shadow-lg auth-card">
+                <div class="auth-header">
+                    <i class="fas fa-user-plus mb-2" style="font-size: 2rem;"></i><br>
+                    ĐĂNG KÝ TÀI KHOẢN
+                </div>
+                <div class="card-body p-4 bg-white">
+                    <form method="POST">
+                        {% csrf_token %}
+                        
+                        {% for field in form %}
+                        <div class="mb-3">
+                            <label class="fw-bold small text-secondary">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}
+                                <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">{{ field.help_text|safe }}</small>
+                            {% endif %}
+                            {% for error in field.errors %}
+                                <div class="text-danger small mt-1"><i class="fas fa-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+
+                        <button type="submit" class="btn btn-danger w-100 fw-bold py-2 mt-3 shadow-sm">
+                            HOÀN TẤT ĐĂNG KÝ
+                        </button>
+                    </form>
+                </div>
+                <div class="card-footer text-center bg-light py-3">
+                    <small>Đã có tài khoản? <a href="{% url 'login' %}" class="text-danger fw-bold text-decoration-none">Đăng nhập ngay</a></small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    var inputs = document.querySelectorAll('input');
+    inputs.forEach(input => input.classList.add('form-control'));
+</script>
+{% endblock %}
