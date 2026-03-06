@@ -11,13 +11,11 @@ from django.contrib.gis.measure import D
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
-from django.contrib import messages as flash_msg # Đổi tên để tránh xung đột
+from django.contrib import messages as flash_msg 
 
 from .models import Restaurant, Table, Reservation, Dish
 
-# ==============================================================================
 # PHẦN 1: PUBLIC USER VIEWS (Giao diện cho người dùng)
-# ==============================================================================
 
 def index(request):
     """Trang chủ: Tìm kiếm, Lọc và Hiển thị danh sách"""
@@ -61,9 +59,7 @@ def map_view(request):
     return render(request, 'restaurants/user_map.html')
 
 
-# ==============================================================================
-# PHẦN 2: AUTHENTICATION & USER PROFILE (Đăng ký, Lịch sử)
-# ==============================================================================
+# PHẦN 2: AUTHENTICATION & USER PROFILE 
 
 def register_view(request):
     """Đăng ký thành viên"""
@@ -89,9 +85,7 @@ def user_booking_history(request):
     return render(request, 'restaurants/user_history.html', {'bookings': my_bookings})
 
 
-# ==============================================================================
 # PHẦN 3: API ENDPOINTS (AJAX/JSON cho Bản đồ và Đặt bàn)
-# ==============================================================================
 
 def api_get_restaurants(request):
     """API trả về dữ liệu GeoJSON của toàn bộ quán"""
@@ -149,15 +143,12 @@ def api_book_table(request):
             restaurant = Restaurant.objects.get(id=restaurant_id)
             available_table = restaurant.tables.filter(is_available=True).first()
             
-            # Nếu hết bàn thì báo lỗi, NHƯNG để test dễ dàng ta sẽ lấy đại bàn đầu tiên
-            # (Trong thực tế nên dùng logic: available_table = restaurant.tables.first())
             if not available_table:
                 available_table = restaurant.tables.first() 
             
             if not available_table:
                 return JsonResponse({'status': 'error', 'message': 'Quán này chưa set-up bàn ghế!'})
-
-            # 3. Tạo đơn đặt bàn (Thủ công)
+            # 3. Tạo đơn đặt bàn
             reservation = Reservation(
                 table=available_table,
                 customer_name=customer_name,
@@ -182,10 +173,7 @@ def api_book_table(request):
             
     return JsonResponse({'status': 'error', 'message': 'Yêu cầu không hợp lệ'})
 
-
-# ==============================================================================
 # PHẦN 4: ADMIN DASHBOARD & MANAGEMENT (Quản trị viên)
-# ==============================================================================
 
 @user_passes_test(lambda u: u.is_superuser) 
 def admin_dashboard(request):
@@ -227,7 +215,7 @@ def admin_restaurant_form(request, pk=None):
         lng = float(request.POST.get('lng'))
         pnt = Point(lng, lat, srid=4326)
 
-        if restaurant: # Sửa
+        if restaurant:
             restaurant.name = name
             restaurant.address = address
             restaurant.district = district
@@ -235,7 +223,7 @@ def admin_restaurant_form(request, pk=None):
             if image: restaurant.image = image
             restaurant.save()
             flash_msg.success(request, f"Đã cập nhật '{name}' thành công!")
-        else: # Thêm
+        else: 
             Restaurant.objects.create(
                 name=name, address=address, district=district,
                 location=pnt, image=image
@@ -257,7 +245,7 @@ def admin_restaurant_form(request, pk=None):
 def admin_restaurant_delete(request, pk):
     restaurant = get_object_or_404(Restaurant, pk=pk)
     restaurant.delete()
-    flash_msg.warning(request, "Đã xóa quán ăn!") # Đã sửa messages -> flash_msg
+    flash_msg.warning(request, "Đã xóa quán ăn!") 
     return redirect('admin_restaurant_list')
 
 

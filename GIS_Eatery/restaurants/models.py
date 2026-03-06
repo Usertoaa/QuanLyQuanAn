@@ -63,3 +63,6 @@ class Dish(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.restaurant.name})"
+    
+class testModel(models.Model):
+    name = models.CharField(max_length=100)
