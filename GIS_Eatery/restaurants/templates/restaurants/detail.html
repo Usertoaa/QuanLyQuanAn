@@ -151,6 +151,9 @@
                     <button class="btn btn-primary w-100 mt-2 fw-bold" onclick="routeToRestaurant()">
                         <i class="fas fa-directions"></i> CHỈ ĐƯỜNG ĐẾN ĐÂY
                     </button>
+                    <a href="{% url 'map_detail' restaurant.id %}" class="btn btn-info w-100 mt-2 fw-bold">
+                        <i class="fas fa-expand"></i> PHÓNG TO BẢN ĐỒ
+                    </a>
                     <div id="route-status" class="text-center mt-1 small text-muted"></div>
                 </div>
             </div>
@@ -168,7 +171,11 @@
         var restaurantLng = parseFloat("{{ restaurant.location.x|stringformat:'f' }}");
         
         var map = L.map('mini-map').setView([restaurantLat, restaurantLng], 15);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        // Sử dụng CartoDB thay vì OpenStreetMap để tránh lỗi Referer 403
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd'
+        }).addTo(map);
         
         // Marker của quán
         L.marker([restaurantLat, restaurantLng]).addTo(map)

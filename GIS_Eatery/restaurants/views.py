@@ -54,6 +54,12 @@ def user_map(request):
     return render(request, 'restaurants/user_map.html')
 
 
+def map_detail(request, pk):
+    """Bản đồ chi tiết cho một quán ăn cụ thể"""
+    restaurant = get_object_or_404(Restaurant, pk=pk)
+    return render(request, 'restaurants/map.html', {'restaurant': restaurant})
+
+
 def map_view(request):
     """Alias cho user_map (để tương thích ngược)"""
     return render(request, 'restaurants/user_map.html')

@@ -1,34 +1,193 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Tra cứu Quán ăn GIS</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="origin">
+    <title>Bản đồ Quán ăn - Chi tiết</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    
     <style>
-        #map { height: 600px; width: 100%; }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f6f6f6;
+        }
+        
+        .navbar {
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .navbar-brand {
+            color: #cf2127 !important;
+            font-weight: bold;
+        }
+        
+        #map {
+            height: calc(100vh - 60px);
+            width: 100%;
+        }
+        
+        .map-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .info-box {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            max-width: 300px;
+        }
+        
+        .info-box h5 {
+            margin: 0 0 10px 0;
+            color: #cf2127;
+            font-weight: bold;
+        }
+        
+        .info-box p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .btn-small {
+            padding: 8px 12px;
+            font-size: 12px;
+            margin-top: 8px;
+        }
     </style>
 </head>
 <body>
-    <h1>Bản đồ Quán ăn</h1>
+    <!-- Navbar -->
+    <nav class="navbar navbar-light sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'restaurant_detail' restaurant.id %}">
+                <i class="fas fa-arrow-left"></i> Quay lại chi tiết quán
+            </a>
+            <h4 class="mb-0 text-center flex-grow-1" style="color: #333;">{{ restaurant.name }}</h4>
+            <div></div>
+        </div>
+    </nav>
+
+    <!-- Bản đồ -->
     <div id="map"></div>
 
+    <!-- Hộp thông tin -->
+    <div class="info-box">
+        <h5><i class="fas fa-info-circle"></i> Thông tin quán</h5>
+        <p><strong>Tên:</strong> {{ restaurant.name }}</p>
+        <p><strong>Địa chỉ:</strong> {{ restaurant.address }}</p>
+        <p><strong>Quận:</strong> {{ restaurant.get_district_display }}</p>
+        <button class="btn btn-primary btn-small w-100" onclick="routeToRestaurant()">
+            <i class="fas fa-directions"></i> CHỈ ĐƯỜNG
+        </button>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
     <script>
-        // Khởi tạo bản đồ tại tọa độ Việt Nam
-        var map = L.map('map').setView([10.7626, 106.6602], 13);
+        var restaurantData = {
+            lat: parseFloat("{{ restaurant.location.y|stringformat:'f' }}"),
+            lng: parseFloat("{{ restaurant.location.x|stringformat:'f' }}"),
+            name: "{{ restaurant.name }}",
+            address: "{{ restaurant.address }}"
+        };
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        // Khởi tạo bản đồ
+        var map = L.map('map').setView([restaurantData.lat, restaurantData.lng], 15);
+        
+        // Sử dụng CartoDB 
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
 
-        // Gọi API lấy dữ liệu quán ăn
-        fetch('/restaurants/api/data/')
-            .then(res => res.json())
-            .then(data => {
-                L.geoJSON(data, {
-                    onEachFeature: function (feature, layer) {
-                        // Hiện thông tin khi click vào điểm
-                        layer.bindPopup("<b>" + feature.properties.name + "</b><br>" + feature.properties.address);
+        // Marker cho quán ăn
+        var restaurantMarker = L.marker([restaurantData.lat, restaurantData.lng], {
+            icon: L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            })
+        }).addTo(map);
+        
+        restaurantMarker.bindPopup("<b>" + restaurantData.name + "</b><br>" + restaurantData.address);
+        restaurantMarker.openPopup();
+
+        var routingControl = null;
+
+        // Hàm chỉ đường
+        function routeToRestaurant() {
+            if (!navigator.geolocation) {
+                alert("Trình duyệt của bạn không hỗ trợ GPS!");
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(function(position) {
+                var userLat = position.coords.latitude;
+                var userLng = position.coords.longitude;
+
+                // Xóa routing cũ nếu có
+                if (routingControl) map.removeControl(routingControl);
+
+                // Thêm marker vị trí user
+                var userMarker = L.marker([userLat, userLng], {
+                    icon: L.icon({
+                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41],
+                        popupAnchor: [1, -34],
+                        shadowSize: [41, 41]
+                    })
+                }).addTo(map);
+                userMarker.bindPopup("Vị trí của bạn");
+
+                // Vẽ đường chỉ dẫn
+                routingControl = L.Routing.control({
+                    waypoints: [
+                        L.latLng(userLat, userLng),
+                        L.latLng(restaurantData.lat, restaurantData.lng)
+                    ],
+                    lineOptions: {
+                        styles: [{color: '#0066ff', opacity: 0.8, weight: 5}]
+                    },
+                    createMarker: function() {
+                        return null; // Đã tạo markers ở trên
                     }
                 }).addTo(map);
+
+                // Zoom để thấy cả 2 điểm
+                var bounds = L.latLngBounds([[userLat, userLng], [restaurantData.lat, restaurantData.lng]]);
+                map.fitBounds(bounds, {padding: [100, 100]});
+
+            }, function() {
+                alert("Không thể lấy vị trí GPS của bạn. Vui lòng kiểm tra cài đặt quyền truy cập!");
             });
+        }
     </script>
 </body>
 </html>

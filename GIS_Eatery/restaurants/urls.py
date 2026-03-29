@@ -8,6 +8,7 @@ urlpatterns = [
     # Trang chính
     path('', views.index, name='index'),
     path('map/', views.user_map, name='user_map'),
+    path('map/<int:pk>/', views.map_detail, name='map_detail'),
     path('my-history/', views.user_booking_history, name='user_booking_history'),
     # API URLs
     path('api/restaurants/', views.api_get_restaurants, name='api_get_restaurants'),
