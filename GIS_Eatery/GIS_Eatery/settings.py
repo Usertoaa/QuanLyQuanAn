@@ -1,11 +1,7 @@
 import os
-if os.name == 'nt':
-    OSGEO4W = r"C:\OSGeo4W" # Kiểm tra lại đường dẫn này sau khi cài xong
-    os.environ['PATH'] = os.path.join(OSGEO4W, 'bin') + os.pathsep + os.environ['PATH']
-    GDAL_LIBRARY_PATH = os.path.join(OSGEO4W, r'bin\gdal312.dll') # Chú ý tên file .dll trong thư mục bin
-    GEOS_LIBRARY_PATH = os.path.join(OSGEO4W, r'bin\geos_c.dll')
 from pathlib import Path
-
+GDAL_LIBRARY_PATH = r"C:\Users\HO VAN THINH\Downloads\bin\gdal312.dll"
+GEOS_LIBRARY_PATH = r"C:\Users\HO VAN THINH\Downloads\bin\geos_c.dll"
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -120,3 +116,4 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 LOGIN_REDIRECT_URL = 'index'
 LOGOUT_REDIRECT_URL = 'index'
+LOGIN_URL = 'login'

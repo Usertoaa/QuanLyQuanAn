@@ -66,3 +66,15 @@ class Dish(models.Model):
     
 class testModel(models.Model):
     name = models.CharField(max_length=100)
+class RestaurantImage(models.Model):
+    restaurant = models.ForeignKey(
+        Restaurant,
+        on_delete=models.CASCADE,
+        related_name='gallery',
+        verbose_name="Quán ăn"
+    )
+    image = models.ImageField(upload_to='restaurant_gallery/', verbose_name="Ảnh")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Ảnh của {self.restaurant.name}"
