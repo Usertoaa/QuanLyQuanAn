@@ -11,17 +11,12 @@ from django.contrib.gis.measure import D
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
-<<<<<<< HEAD
 from django.contrib import messages as flash_msg
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
-from .models import Restaurant, Table, Reservation, Dish, Feedback
-=======
-from django.contrib import messages as flash_msg 
-from .models import Restaurant, Table, Reservation, Dish, RestaurantImage
->>>>>>> ae1de2601ca923e12bff0abf5fde93608141a552
+from .models import Restaurant, Table, Reservation, Dish, Feedback, RestaurantImage
 
 # PHẦN 1: PUBLIC USER VIEWS (Giao diện cho người dùng)
 
@@ -85,7 +80,7 @@ def restaurant_detail(request, pk):
     
     context = {
         'restaurant': restaurant,
-        'feedbacks': feedbacks[:5],  # Hiển thị 5 feedback gần nhất
+        'feedbacks': feedbacks[:5], 
         'total_feedbacks': total_feedbacks,
         'average_rating': round(average_rating, 1),
         'rating_counts': rating_counts
@@ -384,7 +379,6 @@ def admin_dish_edit(request, dish_id):
         return redirect('admin_menu_list', pk=restaurant.pk)
 
     return render(request, 'restaurants/admin_dish_form.html', {'restaurant': restaurant, 'dish': dish, 'action': 'Sửa'})
-
 
 @user_passes_test(lambda u: u.is_superuser)
 def admin_dish_delete(request, dish_id):

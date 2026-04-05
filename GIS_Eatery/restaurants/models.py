@@ -74,7 +74,6 @@ class Feedback(models.Model):
         (5, '⭐⭐⭐⭐⭐ Tuyệt vời'),
     ]
     
-<<<<<<< HEAD
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='feedbacks')
     customer_name = models.CharField(max_length=100, verbose_name="Tên khách hàng")
     customer_email = models.EmailField(verbose_name="Email")
@@ -88,13 +87,9 @@ class Feedback(models.Model):
 
     class Meta:
         ordering = ['-created_at']
-    
-class testUser(models.Model): 
-    name = models.CharField(max_length=100)
-=======
-class testModel(models.Model):
-    name = models.CharField(max_length=100)
+
 class RestaurantImage(models.Model):
+    """Model để lưu ảnh gallery của quán"""
     restaurant = models.ForeignKey(
         Restaurant,
         on_delete=models.CASCADE,
@@ -106,4 +101,11 @@ class RestaurantImage(models.Model):
 
     def __str__(self):
         return f"Ảnh của {self.restaurant.name}"
->>>>>>> ae1de2601ca923e12bff0abf5fde93608141a552
+
+    class Meta:
+        verbose_name = "Ảnh quán ăn"
+        verbose_name_plural = "Ảnh quán ăn"
+
+
+
+
