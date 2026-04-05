@@ -77,15 +77,22 @@
                 {% if request.GET.q %}Kết quả: "{{ request.GET.q }}"{% else %}Khám phá{% endif %}
             </h4>
             <ul class="nav nav-pills bg-white p-1 rounded border">
-                <li class="nav-item">
-                    <a class="nav-link active btn-sm py-1 px-3 fw-bold" id="tab-newest" href="javascript:void(0)" onclick="switchTab('newest')">Mới nhất</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link btn-sm py-1 px-3 fw-bold" id="tab-near" href="javascript:void(0)" onclick="enableNearMe()">
-                        <i class="fas fa-map-marker-alt"></i> Gần tôi
-                    </a>
-                </li>
-            </ul>
+    <li class="nav-item">
+        <a class="nav-link active btn-sm py-1 px-3 fw-bold" id="tab-newest" href="javascript:void(0)" onclick="switchTab('newest')">
+            Mới nhất
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link btn-sm py-1 px-3 fw-bold" id="tab-near" href="javascript:void(0)" onclick="enableNearMe('near')">
+            <i class="fas fa-map-marker-alt"></i> Gần nhất
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link btn-sm py-1 px-3 fw-bold" id="tab-cheap" href="javascript:void(0)" onclick="enableNearMe('cheap')">
+            <i class="fas fa-tags"></i> Rẻ nhất
+        </a>
+    </li>
+</ul>
         </div>
 
         <div id="loading-gps" class="alert alert-info py-2 mb-3 text-center" style="display:none;">
@@ -133,82 +140,103 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    <script>
-        var originalHTML = document.getElementById('restaurant-grid').innerHTML;
+   <script>
+    var originalHTML = document.getElementById('restaurant-grid').innerHTML;
 
-        function switchTab(type) {
-            document.getElementById('tab-newest').classList.remove('active');
-            document.getElementById('tab-near').classList.remove('active');
-            document.getElementById('loading-gps').style.display = 'none';
+    function switchTab(type) {
+        document.getElementById('tab-newest').classList.remove('active');
+        document.getElementById('tab-near').classList.remove('active');
+        document.getElementById('tab-cheap').classList.remove('active');
+        document.getElementById('loading-gps').style.display = 'none';
 
-            if (type === 'newest') {
-                document.getElementById('tab-newest').classList.add('active');
-                document.getElementById('restaurant-grid').innerHTML = originalHTML;
-            } else {
-                document.getElementById('tab-near').classList.add('active');
-            }
+        if (type === 'newest') {
+            document.getElementById('tab-newest').classList.add('active');
+            document.getElementById('restaurant-grid').innerHTML = originalHTML;
+        } else if (type === 'near') {
+            document.getElementById('tab-near').classList.add('active');
+        } else if (type === 'cheap') {
+            document.getElementById('tab-cheap').classList.add('active');
         }
+    }
 
-        function enableNearMe() {
-            switchTab('near');
-            var loading = document.getElementById('loading-gps');
-            loading.style.display = 'block';
+    function enableNearMe(sortType = 'near') {
+    switchTab(sortType);
+    var loading = document.getElementById('loading-gps');
+    loading.style.display = 'block';
 
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(function(position) {
-                    var lat = position.coords.latitude;
-                    var lng = position.coords.longitude;
-                    
-                    fetch(`/api/nearby/?lat=${lat}&lng=${lng}&radius=10`) 
-                        .then(res => res.json())
-                        .then(data => {
-                            loading.style.display = 'none';
-                            renderNearMeGrid(data);
-                        })
-                        .catch(err => {
-                            console.error(err);
-                            loading.style.display = 'none';
-                            alert("Lỗi kết nối server!");
-                        });
-                }, function() {
+    const keyword = document.querySelector('input[name="q"]')?.value || '';
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            var lat = position.coords.latitude;
+            var lng = position.coords.longitude;
+
+            const url = `/api/nearby/?lat=${lat}&lng=${lng}&radius=10&sort=${sortType}&q=${encodeURIComponent(keyword)}`;
+
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
                     loading.style.display = 'none';
-                    alert("Vui lòng bật GPS!");
-                    switchTab('newest');
+                    renderNearMeGrid(data, sortType, keyword);
+                })
+                .catch(err => {
+                    console.error(err);
+                    loading.style.display = 'none';
+                    alert("Lỗi kết nối server!");
                 });
-            } else {
-                alert("Trình duyệt không hỗ trợ GPS.");
-            }
+        }, function() {
+            loading.style.display = 'none';
+            alert("Vui lòng bật GPS!");
+            switchTab('newest');
+        });
+    } else {
+        alert("Trình duyệt không hỗ trợ GPS.");
+    }
+}
+
+   function renderNearMeGrid(data, sortType = 'near', keyword = '') {
+    var container = document.getElementById('restaurant-grid');
+    container.innerHTML = '';
+
+    if (data.length === 0) {
+        let message = 'Không tìm thấy quán phù hợp.';
+        if (keyword) {
+            message = `Không tìm thấy quán nào có món hoặc từ khóa "${keyword}" trong phạm vi gần bạn.`;
+        }
+        container.innerHTML = `<div class="col-12 text-center py-5"><p class="text-muted">${message}</p></div>`;
+        return;
+    }
+
+    data.forEach(r => {
+        let extraBadge = '';
+
+        if (sortType === 'cheap' && r.min_price) {
+            extraBadge = `<span class="badge bg-warning text-dark"><i class="fas fa-tags"></i> Từ ${r.min_price.toLocaleString()}đ</span>`;
+        } else if (r.distance !== null) {
+            extraBadge = `<span class="badge bg-success text-white"><i class="fas fa-location-arrow"></i> Cách ${r.distance} km</span>`;
         }
 
-        function renderNearMeGrid(data) {
-            var container = document.getElementById('restaurant-grid');
-            container.innerHTML = '';
-
-            if (data.length === 0) {
-                container.innerHTML = '<div class="col-12 text-center py-5"><p class="text-muted">Không tìm thấy quán gần bạn trong 10km.</p></div>';
-                return;
-            }
-
-            data.forEach(r => {
-                var html = `
-                <div class="col">
-                    <div class="restaurant-card card h-100 shadow-sm border-0">
-                        <a href="/restaurant/${r.id}/">
-                            <img src="${r.image}" class="card-img-top" style="height: 200px; object-fit: cover; width: 100%;">
-                        </a>
-                        <div class="card-body">
-                            <a href="/restaurant/${r.id}/" class="res-name text-truncate d-block fw-bold text-decoration-none text-dark">${r.name}</a>
-                            <p class="res-address text-truncate mb-1 text-muted small"><i class="fas fa-map-marker-alt text-danger"></i> ${r.address}</p>
-                            <div class="d-flex justify-content-between align-items-center mt-2">
-                                <span class="badge bg-light text-secondary border">${r.district}</span>
-                                <span class="badge bg-success text-white"><i class="fas fa-location-arrow"></i> Cách ${r.distance} km</span>
-                            </div>
-                        </div>
+        var html = `
+        <div class="col">
+            <div class="restaurant-card card h-100 shadow-sm border-0">
+                <a href="/restaurant/${r.id}/">
+                    <img src="${r.image}" class="card-img-top" style="height: 200px; object-fit: cover; width: 100%;">
+                </a>
+                <div class="card-body">
+                    <a href="/restaurant/${r.id}/" class="res-name text-truncate d-block fw-bold text-decoration-none text-dark">${r.name}</a>
+                    <p class="res-address text-truncate mb-1 text-muted small">
+                        <i class="fas fa-map-marker-alt text-danger"></i> ${r.address}
+                    </p>
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <span class="badge bg-light text-secondary border">${r.district}</span>
+                        ${extraBadge}
                     </div>
-                </div>`;
-                container.innerHTML += html;
-            });
-        }
-    </script>
+                </div>
+            </div>
+        </div>`;
+        container.innerHTML += html;
+    });
+}
+</script>
 </body>
 </html>

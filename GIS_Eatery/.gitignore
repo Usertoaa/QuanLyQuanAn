@@ -1,4 +1,8 @@
-
+.venv/
+venv/
+__pycache__/
+*.pyc
+media/
 restaurants/management
 
 *.pyc
@@ -13,3 +17,4 @@ db.sqlite3
 
 .DS_Store
 Thumbs.db
+../venv/

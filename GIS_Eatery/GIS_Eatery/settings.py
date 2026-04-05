@@ -1,11 +1,15 @@
 import os
+<<<<<<< HEAD
 if os.name == 'nt':
     OSGEO4W = r"C:\OSGeo4W" 
     os.environ['PATH'] = os.path.join(OSGEO4W, 'bin') + os.pathsep + os.environ['PATH']
     GDAL_LIBRARY_PATH = os.path.join(OSGEO4W, r'bin\gdal312.dll') 
     GEOS_LIBRARY_PATH = os.path.join(OSGEO4W, r'bin\geos_c.dll')
+=======
+>>>>>>> ae1de2601ca923e12bff0abf5fde93608141a552
 from pathlib import Path
-
+GDAL_LIBRARY_PATH = r"C:\Users\HO VAN THINH\Downloads\bin\gdal312.dll"
+GEOS_LIBRARY_PATH = r"C:\Users\HO VAN THINH\Downloads\bin\geos_c.dll"
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -120,6 +124,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 LOGIN_REDIRECT_URL = 'index'
 LOGOUT_REDIRECT_URL = 'index'
+<<<<<<< HEAD
 
 # ===== EMAIL CONFIGURATION (MailTrap) =====
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -132,3 +137,6 @@ DEFAULT_FROM_EMAIL = 'noreply@giseatery.com'
 
 # Optional: Server email
 SERVER_EMAIL = 'noreply@giseatery.com'
+=======
+LOGIN_URL = 'login'
+>>>>>>> ae1de2601ca923e12bff0abf5fde93608141a552

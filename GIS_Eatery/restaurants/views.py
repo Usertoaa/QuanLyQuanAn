@@ -5,18 +5,23 @@ from django.core.serializers import serialize
 from django.contrib.gis.geos import Point
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_datetime 
-from django.db.models import Q 
+from django.db.models import Q, Min
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.gis.measure import D
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
+<<<<<<< HEAD
 from django.contrib import messages as flash_msg
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
 from .models import Restaurant, Table, Reservation, Dish, Feedback
+=======
+from django.contrib import messages as flash_msg 
+from .models import Restaurant, Table, Reservation, Dish, RestaurantImage
+>>>>>>> ae1de2601ca923e12bff0abf5fde93608141a552
 
 # PHẦN 1: PUBLIC USER VIEWS (Giao diện cho người dùng)
 
@@ -29,19 +34,28 @@ def index(request):
     search_query = request.GET.get('q')
     if search_query:
         restaurants = restaurants.filter(
-            Q(name__icontains=search_query) | 
-            Q(address__icontains=search_query)
-        )
+            Q(name__icontains=search_query) |
+            Q(address__icontains=search_query) |
+            Q(dishes__name__icontains=search_query)
+        ).distinct()
 
     # Lọc theo Quận
     district_filter = request.GET.get('district')
     if district_filter:
         restaurants = restaurants.filter(district=district_filter)
 
+    # Sắp xếp rẻ nhất
+    sort = request.GET.get('sort')
+    if sort == 'cheap':
+        restaurants = restaurants.annotate(
+            min_price=Min('dishes__price')
+        ).order_by('min_price', '-created_at')
+
     context = {
         'restaurants': restaurants,
         'districts': districts,
-        'current_district': district_filter
+        'current_district': district_filter,
+        'current_sort': sort,
     }
     return render(request, 'restaurants/index.html', context)
 
@@ -131,19 +145,37 @@ def api_get_restaurants(request):
 
 
 def api_nearby_restaurants(request):
-    """API tìm quán gần vị trí User"""
+    """API tìm quán gần vị trí User, có thể lọc theo tên quán / địa chỉ / món ăn"""
     try:
         lat = float(request.GET.get('lat'))
         lng = float(request.GET.get('lng'))
-        radius = float(request.GET.get('radius', 5))
+        radius = float(request.GET.get('radius', 10))
+        sort = request.GET.get('sort', 'near')
+        keyword = request.GET.get('q', '').strip()
 
         user_location = Point(lng, lat, srid=4326)
 
         restaurants = Restaurant.objects.filter(
             location__distance_lte=(user_location, D(km=radius))
-        ).annotate(
-            distance=Distance('location', user_location)
-        ).order_by('distance')
+        )
+
+        # Lọc theo từ khóa nếu có
+        if keyword:
+            restaurants = restaurants.filter(
+                Q(name__icontains=keyword) |
+                Q(address__icontains=keyword) |
+                Q(dishes__name__icontains=keyword)
+            ).distinct()
+
+        restaurants = restaurants.annotate(
+            distance=Distance('location', user_location),
+            min_price=Min('dishes__price')
+        )
+
+        if sort == 'cheap':
+            restaurants = restaurants.order_by('min_price', 'distance')
+        else:
+            restaurants = restaurants.order_by('distance')
 
         data = []
         for r in restaurants:
@@ -153,13 +185,15 @@ def api_nearby_restaurants(request):
                 'name': r.name,
                 'address': r.address,
                 'district': r.get_district_display(),
-                'distance': round(r.distance.km, 1),
+                'distance': round(r.distance.km, 1) if r.distance else None,
+                'min_price': int(r.min_price) if r.min_price else None,
                 'image': img_url,
                 'lat': r.location.y,
                 'lng': r.location.x
             })
-        
+
         return JsonResponse(data, safe=False)
+
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
 
@@ -246,7 +280,8 @@ def admin_restaurant_form(request, pk=None):
         name = request.POST.get('name')
         address = request.POST.get('address')
         district = request.POST.get('district')
-        image = request.FILES.get('image')
+        image = request.FILES.get('image')  # ảnh đại diện
+        gallery_images = request.FILES.getlist('gallery_images')  # nhiều ảnh
         lat = float(request.POST.get('lat'))
         lng = float(request.POST.get('lng'))
         pnt = Point(lng, lat, srid=4326)
@@ -256,20 +291,39 @@ def admin_restaurant_form(request, pk=None):
             restaurant.address = address
             restaurant.district = district
             restaurant.location = pnt
-            if image: restaurant.image = image
+            if image:
+                restaurant.image = image
             restaurant.save()
+
+            # thêm ảnh mới vào album
+            for img in gallery_images:
+                RestaurantImage.objects.create(
+                    restaurant=restaurant,
+                    image=img
+                )
+
             flash_msg.success(request, f"Đã cập nhật '{name}' thành công!")
-        else: 
-            Restaurant.objects.create(
-                name=name, address=address, district=district,
-                location=pnt, image=image
+        else:
+            restaurant = Restaurant.objects.create(
+                name=name,
+                address=address,
+                district=district,
+                location=pnt,
+                image=image
             )
+
+            for img in gallery_images:
+                RestaurantImage.objects.create(
+                    restaurant=restaurant,
+                    image=img
+                )
+
             flash_msg.success(request, f"Đã thêm '{name}' thành công!")
 
         return redirect('admin_restaurant_list')
 
     context = {
-        'restaurant': restaurant, 
+        'restaurant': restaurant,
         'districts': Restaurant.DISTRICT_CHOICES,
         'action_title': action_title,
         'active_page': 'restaurants'
