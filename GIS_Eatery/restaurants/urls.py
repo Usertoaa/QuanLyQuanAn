@@ -34,6 +34,11 @@ urlpatterns = [
     path('my-admin/restaurant/<int:pk>/menu/add/', views.admin_dish_form, name='admin_dish_add'),
     path('my-admin/menu/edit/<int:dish_id>/', views.admin_dish_edit, name='admin_dish_edit'),
     path('my-admin/menu/delete/<int:dish_id>/', views.admin_dish_delete, name='admin_dish_delete'),
+    # Quan Ly Phan Hoi
+    path('restaurant/<int:pk>/feedback/', views.feedback_form, name='feedback_form'),
+    path('my-admin/restaurant/<int:pk>/feedbacks/', views.admin_feedback_list, name='admin_feedback_list'),
+    path('my-admin/all-feedbacks/', views.admin_all_feedbacks, name='admin_all_feedbacks'),
+    path('my-admin/feedback/<int:feedback_id>/read/', views.admin_mark_feedback_as_read, name='mark_feedback_as_read'),
     # Dang Ky / Dang Nhap / Dang Xuat
     path('register/', views.register_view, name='register'),
     path('login/', auth_views.LoginView.as_view(template_name='restaurants/login.html'), name='login'),

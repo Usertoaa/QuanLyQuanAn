@@ -10,15 +10,38 @@
     Quản lý Đặt bàn: 
     <span class="text-danger">
         {% if is_global %}
-            TẤT CẢ CHI NHÁNH
+            {% if selected_restaurant_id %}
+                {{ selected_restaurant_name }}
+            {% else %}
+                TẤT CẢ CHI NHÁNH
+            {% endif %}
         {% else %}
             {{ restaurant.name }}
         {% endif %}
     </span>
 </h2>
     </div>
-    <div class="bg-white p-2 rounded border shadow-sm">
-        <strong>Tổng đơn:</strong> {{ bookings.count }}
+    <div class="d-flex gap-2 align-items-center">
+        {% if is_global %}
+        <!-- Lọc theo quán khi xem toàn hệ thống -->
+        <form method="GET" class="d-flex gap-2" style="align-items: center;">
+            <select name="restaurant_id" class="form-select form-select-sm" style="width: 250px;">
+                <option value="">-- Tất cả quán ăn --</option>
+                {% for rest in all_restaurants %}
+                    <option value="{{ rest.id }}" {% if selected_restaurant_id == rest.id %}selected{% endif %}>
+                        {{ rest.name }}
+                    </option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-sm btn-outline-primary">🔍 Lọc</button>
+            {% if selected_restaurant_id %}
+                <a href="?" class="btn btn-sm btn-outline-secondary">✕ Xóa</a>
+            {% endif %}
+        </form>
+        {% endif %}
+        <div class="bg-white p-2 rounded border shadow-sm">
+            <strong>Tổng đơn:</strong> {{ bookings.count }}
+        </div>
     </div>
 </div>
 
@@ -44,9 +67,8 @@
                     </td>
                     <td>
                         <div class="fw-bold">{{ b.customer_name }}</div>
-                        <small class="text-muted"><i class="fas fa-phone"></i> {{ b.customer_phone }}</small>
                     </td>
-                    <td><span class="badge bg-light text-dark border">{{ b.people_count }} người</span></td>
+                    <td><span class="badge bg-light text-dark border">{{ b.number_of_people }} người</span></td>
                     <td>
                         <div class="fw-bold">{{ b.table.restaurant.name }}</div>
                         <small class="text-muted">Bàn {{ b.table.table_number }}</small>

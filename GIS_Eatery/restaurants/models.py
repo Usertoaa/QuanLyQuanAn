@@ -63,6 +63,30 @@ class Dish(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.restaurant.name})"
+
+class Feedback(models.Model):
+    """Model lưu phản hồi từ khách hàng"""
+    RATING_CHOICES = [
+        (1, '⭐ Rất tệ'),
+        (2, '⭐⭐ Tệ'),
+        (3, '⭐⭐⭐ Bình thường'),
+        (4, '⭐⭐⭐⭐ Tốt'),
+        (5, '⭐⭐⭐⭐⭐ Tuyệt vời'),
+    ]
     
-class testModel(models.Model):
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='feedbacks')
+    customer_name = models.CharField(max_length=100, verbose_name="Tên khách hàng")
+    customer_email = models.EmailField(verbose_name="Email")
+    rating = models.IntegerField(choices=RATING_CHOICES, verbose_name="Đánh giá")
+    message = models.TextField(verbose_name="Nội dung phản hồi")
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False, verbose_name="Đã xem")
+    
+    def __str__(self):
+        return f"{self.customer_name} - {self.restaurant.name} ({self.get_rating_display()})"
+
+    class Meta:
+        ordering = ['-created_at']
+    
+class testUser(models.Model): 
     name = models.CharField(max_length=100)

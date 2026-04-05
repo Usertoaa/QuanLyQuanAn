@@ -1,8 +1,8 @@
 import os
 if os.name == 'nt':
-    OSGEO4W = r"C:\OSGeo4W" # Kiểm tra lại đường dẫn này sau khi cài xong
+    OSGEO4W = r"C:\OSGeo4W" 
     os.environ['PATH'] = os.path.join(OSGEO4W, 'bin') + os.pathsep + os.environ['PATH']
-    GDAL_LIBRARY_PATH = os.path.join(OSGEO4W, r'bin\gdal312.dll') # Chú ý tên file .dll trong thư mục bin
+    GDAL_LIBRARY_PATH = os.path.join(OSGEO4W, r'bin\gdal312.dll') 
     GEOS_LIBRARY_PATH = os.path.join(OSGEO4W, r'bin\geos_c.dll')
 from pathlib import Path
 
@@ -120,3 +120,15 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 LOGIN_REDIRECT_URL = 'index'
 LOGOUT_REDIRECT_URL = 'index'
+
+# ===== EMAIL CONFIGURATION (MailTrap) =====
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'sandbox.smtp.mailtrap.io'
+EMAIL_PORT = 2525
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = '7b5cdf5e23e753'
+EMAIL_HOST_PASSWORD = '8bc1f89988c729'
+DEFAULT_FROM_EMAIL = 'noreply@giseatery.com'
+
+# Optional: Server email
+SERVER_EMAIL = 'noreply@giseatery.com'

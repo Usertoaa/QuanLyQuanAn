@@ -24,7 +24,6 @@ class ReservationAdmin(admin.ModelAdmin):
     list_display = ('customer_name', 'get_restaurant', 'table', 'booking_time', 'number_of_people')
     list_filter = ('booking_time',)
 
-    # Hàm phụ để hiển thị tên quán (vì Reservation nối với Table, không nối trực tiếp Restaurant)
     def get_restaurant(self, obj):
         return obj.table.restaurant.name
     get_restaurant.short_description = 'Quán ăn'

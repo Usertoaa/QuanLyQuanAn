@@ -11,9 +11,12 @@ from django.contrib.gis.measure import D
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
-from django.contrib import messages as flash_msg 
+from django.contrib import messages as flash_msg
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 
-from .models import Restaurant, Table, Reservation, Dish
+from .models import Restaurant, Table, Reservation, Dish, Feedback
 
 # PHẦN 1: PUBLIC USER VIEWS (Giao diện cho người dùng)
 
@@ -46,7 +49,34 @@ def index(request):
 def restaurant_detail(request, pk):
     """Trang chi tiết quán ăn"""
     restaurant = get_object_or_404(Restaurant, pk=pk)
-    return render(request, 'restaurants/detail.html', {'restaurant': restaurant})
+    
+    # Lấy các đánh giá của quán
+    feedbacks = restaurant.feedbacks.all()
+    total_feedbacks = feedbacks.count()
+    
+    # Tính trung bình đánh giá
+    if total_feedbacks > 0:
+        average_rating = sum(f.rating for f in feedbacks) / total_feedbacks
+    else:
+        average_rating = 0
+    
+    # Đếm từng rating
+    rating_counts = {
+        1: feedbacks.filter(rating=1).count(),
+        2: feedbacks.filter(rating=2).count(),
+        3: feedbacks.filter(rating=3).count(),
+        4: feedbacks.filter(rating=4).count(),
+        5: feedbacks.filter(rating=5).count(),
+    }
+    
+    context = {
+        'restaurant': restaurant,
+        'feedbacks': feedbacks[:5],  # Hiển thị 5 feedback gần nhất
+        'total_feedbacks': total_feedbacks,
+        'average_rating': round(average_rating, 1),
+        'rating_counts': rating_counts
+    }
+    return render(request, 'restaurants/detail.html', context)
 
 
 def user_map(request):
@@ -276,7 +306,7 @@ def admin_dish_form(request, pk):
             image=request.FILES.get('image'),
             is_available=request.POST.get('is_available') == 'on'
         )
-        flash_msg.success(request, "Đã thêm món mới!") # Đã sửa messages -> flash_msg
+        flash_msg.success(request, "Đã thêm món mới!") 
         return redirect('admin_menu_list', pk=pk)
 
     return render(request, 'restaurants/admin_dish_form.html', {'restaurant': restaurant, 'action': 'Thêm'})
@@ -296,7 +326,7 @@ def admin_dish_edit(request, dish_id):
         dish.is_available = request.POST.get('is_available') == 'on'
         dish.save()
         
-        flash_msg.success(request, "Cập nhật món thành công!") # Đã sửa messages -> flash_msg
+        flash_msg.success(request, "Cập nhật món thành công!") 
         return redirect('admin_menu_list', pk=restaurant.pk)
 
     return render(request, 'restaurants/admin_dish_form.html', {'restaurant': restaurant, 'dish': dish, 'action': 'Sửa'})
@@ -307,7 +337,7 @@ def admin_dish_delete(request, dish_id):
     dish = get_object_or_404(Dish, pk=dish_id)
     restaurant_id = dish.restaurant.pk
     dish.delete()
-    flash_msg.warning(request, "Đã xóa món ăn!") # Đã sửa messages -> flash_msg
+    flash_msg.warning(request, "Đã xóa món ăn!") 
     return redirect('admin_menu_list', pk=restaurant_id)
 
 
@@ -324,7 +354,25 @@ def admin_booking_list(request, pk):
 def admin_all_bookings(request):
     """Xem đơn đặt bàn toàn hệ thống (Optional)"""
     bookings = Reservation.objects.all().select_related('table__restaurant').order_by('-booking_time')
-    return render(request, 'restaurants/admin_booking_list.html', {'bookings': bookings, 'is_global': True})
+    
+    # Lọc theo quán nếu có tham số
+    selected_restaurant_id = request.GET.get('restaurant_id')
+    selected_restaurant_name = None
+    
+    if selected_restaurant_id:
+        bookings = bookings.filter(table__restaurant_id=selected_restaurant_id)
+        selected_restaurant = Restaurant.objects.get(id=selected_restaurant_id)
+        selected_restaurant_name = selected_restaurant.name
+    
+    all_restaurants = Restaurant.objects.all().order_by('name')
+    
+    return render(request, 'restaurants/admin_booking_list.html', {
+        'bookings': bookings, 
+        'is_global': True,
+        'all_restaurants': all_restaurants,
+        'selected_restaurant_id': selected_restaurant_id,
+        'selected_restaurant_name': selected_restaurant_name
+    })
 
 
 @user_passes_test(lambda u: u.is_superuser)
@@ -340,3 +388,221 @@ def admin_update_booking_status(request, booking_id, status):
         flash_msg.error(request, "Trạng thái không hợp lệ!")
         
     return redirect('admin_booking_list', pk=booking.table.restaurant.pk)
+
+
+# --- QUẢN LÝ PHẢN HỒI ---
+def feedback_form(request, pk):
+    """Trang form gửi phản hồi về quán ăn"""
+    restaurant = get_object_or_404(Restaurant, pk=pk)
+    
+    if request.method == 'POST':
+        customer_name = request.POST.get('customer_name')
+        customer_email = request.POST.get('customer_email')
+        rating = request.POST.get('rating')
+        message = request.POST.get('message')
+        
+        # Tạo Feedback record
+        feedback = Feedback.objects.create(
+            restaurant=restaurant,
+            customer_name=customer_name,
+            customer_email=customer_email,
+            rating=rating,
+            message=message
+        )
+        
+        # Gửi email thông báo cho Admin
+        try:
+            send_feedback_email_to_admin(feedback)
+        except Exception as e:
+            print(f"Lỗi gửi email admin: {e}")
+        
+        # Gửi email xác nhận cho khách hàng
+        try:
+            send_feedback_confirmation_email(feedback)
+        except Exception as e:
+            print(f"Lỗi gửi email xác nhận: {e}")
+        
+        flash_msg.success(request, "Cảm ơn bạn! Phản hồi của bạn đã được gửi thành công.")
+        return redirect('restaurant_detail', pk=pk)
+    
+    context = {
+        'restaurant': restaurant,
+        'rating_choices': Feedback.RATING_CHOICES
+    }
+    return render(request, 'restaurants/feedback_form.html', context)
+
+
+@user_passes_test(lambda u: u.is_superuser)
+def admin_feedback_list(request, pk):
+    """Xem phản hồi của 1 quán cụ thể"""
+    restaurant = get_object_or_404(Restaurant, pk=pk)
+    feedbacks = restaurant.feedbacks.all()
+    
+    context = {
+        'restaurant': restaurant,
+        'feedbacks': feedbacks,
+        'total_feedbacks': feedbacks.count(),
+        'active_page': 'feedbacks'
+    }
+    return render(request, 'restaurants/admin_feedback_list.html', context)
+
+
+@user_passes_test(lambda u: u.is_superuser)
+def admin_all_feedbacks(request):
+    """Xem tất cả phản hồi trong hệ thống"""
+    feedbacks = Feedback.objects.all().select_related('restaurant').order_by('-created_at')
+    
+    # Lọc theo quán nếu có
+    restaurant_id = request.GET.get('restaurant_id')
+    restaurant_name = None
+    if restaurant_id:
+        feedbacks = feedbacks.filter(restaurant_id=restaurant_id)
+        restaurant_name = Restaurant.objects.get(id=restaurant_id).name
+    
+    # Lọc theo rating nếu có
+    rating = request.GET.get('rating')
+    if rating:
+        feedbacks = feedbacks.filter(rating=rating)
+    
+    all_restaurants = Restaurant.objects.all().order_by('name')
+    
+    context = {
+        'feedbacks': feedbacks,
+        'all_restaurants': all_restaurants,
+        'restaurant_id': restaurant_id,
+        'restaurant_name': restaurant_name,
+        'rating': rating,
+        'active_page': 'feedbacks'
+    }
+    return render(request, 'restaurants/admin_all_feedbacks.html', context)
+
+
+@user_passes_test(lambda u: u.is_superuser)
+def admin_mark_feedback_as_read(request, feedback_id):
+    """Đánh dấu phản hồi đã xem"""
+    feedback = get_object_or_404(Feedback, pk=feedback_id)
+    feedback.is_read = True
+    feedback.save()
+    flash_msg.success(request, "Đã đánh dấu phản hồi này là đã xem.")
+    return redirect('admin_feedback_list', pk=feedback.restaurant.pk)
+
+
+# ===== EMAIL FUNCTIONS =====
+
+def send_feedback_email_to_admin(feedback):
+    """Gửi email thông báo phản hồi mới đến Admin"""
+    subject = f"🔔 Phản hồi mới từ {feedback.customer_name} - {feedback.restaurant.name}"
+    
+    html_message = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+                <!-- Header -->
+                <div style="background-color: #dc3545; color: white; padding: 20px; text-align: center;">
+                    <h2 style="margin: 0;">📝 Phản hồi từ khách hàng</h2>
+                </div>
+                
+                <!-- Content -->
+                <div style="padding: 20px;">
+                    <p><strong>Quán ăn:</strong> {feedback.restaurant.name}</p>
+                    <p><strong>Tên khách hàng:</strong> {feedback.customer_name}</p>
+                    <p><strong>Email:</strong> {feedback.customer_email}</p>
+                    <p><strong>Đánh giá:</strong> {feedback.get_rating_display()}</p>
+                    <p><strong>Thời gian:</strong> {feedback.created_at.strftime('%d/%m/%Y %H:%M')}</p>
+                    
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                    
+                    <h4>Nội dung phản hồi:</h4>
+                    <div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #dc3545; border-radius: 4px;">
+                        <p>{feedback.message}</p>
+                    </div>
+                    
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                    
+                    <!-- CTA Button -->
+                    <div style="text-align: center; margin: 20px 0;">
+                        <a href="http://localhost:8000/my-admin/restaurant/{feedback.restaurant.id}/feedbacks/" 
+                           style="background-color: #dc3545; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+                            👁️ Xem chi tiết
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Footer -->
+                <div style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666;">
+                    <p>GIS Eatery © 2026 | Hệ thống quản lý quán ăn</p>
+                </div>
+            </div>
+        </body>
+    </html>
+    """
+    
+    plain_message = strip_tags(html_message)
+    
+    send_mail(
+        subject=subject,
+        message=plain_message,
+        from_email='noreply@giseatery.com',
+        recipient_list=['admin@giseatery.com'],
+        html_message=html_message,
+        fail_silently=False,
+    )
+
+
+def send_feedback_confirmation_email(feedback):
+    """Gửi email xác nhận cho khách hàng sau khi gửi phản hồi"""
+    subject = "✅ Phản hồi của bạn đã được nhận"
+    
+    html_message = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+                <!-- Header -->
+                <div style="background-color: #28a745; color: white; padding: 20px; text-align: center;">
+                    <h2 style="margin: 0;">✅ Cảm ơn bạn!</h2>
+                </div>
+                
+                <!-- Content -->
+                <div style="padding: 20px;">
+                    <p>Xin chào <strong>{feedback.customer_name}</strong>,</p>
+                    
+                    <p>Cảm ơn bạn đã gửi phản hồi cho quán ăn <strong>{feedback.restaurant.name}</strong>.</p>
+                    
+                    <p>Chúng tôi sẽ xem xét phản hồi của bạn trong vòng 24 giờ và sẽ liên hệ với bạn nếu cần thêm thông tin.</p>
+                    
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                    
+                    <h4>Thông tin phản hồi của bạn:</h4>
+                    <div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #28a745; border-radius: 4px;">
+                        <p><strong>Quán ăn:</strong> {feedback.restaurant.name}</p>
+                        <p><strong>Đánh giá:</strong> {feedback.get_rating_display()}</p>
+                        <p><strong>Ngày gửi:</strong> {feedback.created_at.strftime('%d/%m/%Y %H:%M')}</p>
+                    </div>
+                    
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                    
+                    <p style="color: #666; font-size: 14px;">
+                        Nếu bạn có thắc mắc, vui lòng liên hệ với chúng tôi qua email này.
+                    </p>
+                </div>
+                
+                <!-- Footer -->
+                <div style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666;">
+                    <p>GIS Eatery © 2026 | Hệ thống quản lý quán ăn</p>
+                    <p>Email này được gửi tự động, vui lòng không trả lời email này.</p>
+                </div>
+            </div>
+        </body>
+    </html>
+    """
+    
+    plain_message = strip_tags(html_message)
+    
+    send_mail(
+        subject=subject,
+        message=plain_message,
+        from_email='noreply@giseatery.com',
+        recipient_list=[feedback.customer_email],
+        html_message=html_message,
+        fail_silently=False,
+    )

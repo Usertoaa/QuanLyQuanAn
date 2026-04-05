@@ -1,0 +1,200 @@
+{% extends 'restaurants/base.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+            <!-- Back Button -->
+            <a href="{% url 'restaurant_detail' restaurant.id %}" class="text-decoration-none text-muted mb-3 d-inline-block">
+                <i class="fas fa-arrow-left"></i> Quay lại
+            </a>
+
+            <!-- Card -->
+            <div class="card shadow-lg border-0 rounded-lg">
+                <div class="card-header bg-danger text-white py-4">
+                    <h3 class="mb-0">
+                        <i class="fas fa-comments"></i> Gửi phản hồi
+                    </h3>
+                    <small class="text-light">Cho: <strong>{{ restaurant.name }}</strong></small>
+                </div>
+
+                <div class="card-body p-4">
+                    <!-- Messages -->
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="POST" class="needs-validation" novalidate>
+                        {% csrf_token %}
+
+                        <!-- Tên khách hàng -->
+                        <div class="mb-3">
+                            <label for="customer_name" class="form-label fw-bold">
+                                <i class="fas fa-user"></i> Tên của bạn
+                            </label>
+                            <input 
+                                type="text" 
+                                class="form-control form-control-lg" 
+                                id="customer_name" 
+                                name="customer_name"
+                                placeholder="Nhập tên của bạn"
+                                required
+                            >
+                            <div class="invalid-feedback">Vui lòng nhập tên.</div>
+                        </div>
+
+                        <!-- Email -->
+                        <div class="mb-3">
+                            <label for="customer_email" class="form-label fw-bold">
+                                <i class="fas fa-envelope"></i> Email
+                            </label>
+                            <input 
+                                type="email" 
+                                class="form-control form-control-lg" 
+                                id="customer_email" 
+                                name="customer_email"
+                                placeholder="your.email@example.com"
+                                required
+                            >
+                            <div class="invalid-feedback">Vui lòng nhập email hợp lệ.</div>
+                        </div>
+
+                        <!-- Đánh giá (Rating) -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-star"></i> Đánh giá
+                            </label>
+                            <div class="rating-container d-flex gap-3 flex-wrap">
+                                {% for value, label in rating_choices %}
+                                    <div class="form-check">
+                                        <input 
+                                            class="form-check-input" 
+                                            type="radio" 
+                                            name="rating" 
+                                            id="rating_{{ value }}"
+                                            value="{{ value }}"
+                                            required
+                                        >
+                                        <label class="form-check-label cursor-pointer" for="rating_{{ value }}">
+                                            <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+                                                {{ label }}
+                                            </span>
+                                        </label>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <div class="invalid-feedback d-block">Vui lòng chọn một đánh giá.</div>
+                        </div>
+
+                        <!-- Nội dung phản hồi -->
+                        <div class="mb-4">
+                            <label for="message" class="form-label fw-bold">
+                                <i class="fas fa-message"></i> Nội dung phản hồi
+                            </label>
+                            <textarea 
+                                class="form-control form-control-lg" 
+                                id="message" 
+                                name="message"
+                                rows="6"
+                                placeholder="Vui lòng chia sẻ trải nghiệm của bạn tại quán ăn này..."
+                                required
+                            ></textarea>
+                            <small class="text-muted d-block mt-2">
+                                <i class="fas fa-info-circle"></i> Tối thiểu 10 ký tự
+                            </small>
+                            <div class="invalid-feedback">Vui lòng nhập nội dung phản hồi.</div>
+                        </div>
+
+                        <!-- Thông tin quán -->
+                        <div class="alert alert-light border mb-4">
+                            <strong class="text-danger">{{ restaurant.name }}</strong>
+                            <div class="small text-muted mt-2">
+                                <i class="fas fa-map-marker-alt"></i> {{ restaurant.address }}<br>
+                                <i class="fas fa-map"></i> {{ restaurant.get_district_display }}
+                            </div>
+                        </div>
+
+                        <!-- Submit & Cancel -->
+                        <div class="d-grid gap-2 d-sm-flex justify-content-sm-between">
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                <i class="fas fa-paper-plane"></i> Gửi phản hồi
+                            </button>
+                            <a href="{% url 'restaurant_detail' restaurant.id %}" class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-times"></i> Hủy
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Info Box -->
+            <div class="mt-4 p-3 bg-light rounded border-start border-5 border-danger">
+                <h6 class="fw-bold mb-2"><i class="fas fa-lightbulb"></i> Lưu ý:</h6>
+                <ul class="small mb-0">
+                    <li>Phản hồi của bạn sẽ giúp chúng tôi cải thiện dịch vụ</li>
+                    <li>Vui lòng trung thực và chi tiết trong phản hồi</li>
+                    <li>Chúng tôi sẽ xem xét và phản hồi trong vòng 24 giờ</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    
+    .rating-container .form-check-input {
+        cursor: pointer;
+    }
+    
+    .rating-container .form-check:hover .badge {
+        transform: scale(1.1);
+        transition: transform 0.2s;
+    }
+    
+    .card {
+        transition: box-shadow 0.3s;
+    }
+    
+    .card:hover {
+        box-shadow: 0 0.5rem 2rem rgba(220, 53, 69, 0.15) !important;
+    }
+</style>
+
+<script>
+    // Form validation
+    (function() {
+        'use strict';
+        window.addEventListener('load', function() {
+            const forms = document.querySelectorAll('.needs-validation');
+            Array.prototype.slice.call(forms).forEach(function(form) {
+                form.addEventListener('submit', function(event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                }, false);
+            });
+        }, false);
+    })();
+
+    // Message auto-hide
+    document.addEventListener('DOMContentLoaded', function() {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                alert.classList.remove('show');
+                alert.classList.add('fade');
+            }, 3000);
+        });
+    });
+</script>
+{% endblock %}

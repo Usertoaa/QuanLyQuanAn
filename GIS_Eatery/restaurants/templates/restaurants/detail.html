@@ -59,6 +59,30 @@
                     <p class="res-address mb-2"><i class="fas fa-map-marker-alt text-danger"></i> {{ restaurant.address }}</p>
                     <span class="badge bg-success">{{ restaurant.get_district_display }}</span>
                     
+                    <!-- Rating Section -->
+                    {% if total_feedbacks > 0 %}
+                    <div class="mt-3 p-3 bg-light rounded d-flex align-items-center gap-3">
+                        <div class="text-center">
+                            <div class="display-6 fw-bold text-warning">{{ average_rating }}</div>
+                            <div class="small text-muted">
+                                {% for i in "12345" %}
+                                    {% with forloop.counter as star_num %}
+                                        {% if star_num|stringformat:"f" <= average_rating|stringformat:"f" %}
+                                            <i class="fas fa-star text-warning"></i>
+                                        {% else %}
+                                            <i class="far fa-star text-warning"></i>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <small class="d-block"><strong>{{ total_feedbacks }}</strong> đánh giá</small>
+                            <small class="text-muted d-block">Dựa trên {{ total_feedbacks }} phản hồi từ khách hàng</small>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
                     <div class="mt-3 text-secondary d-flex gap-3">
                         <span><i class="fas fa-wifi"></i> Free Wifi</span>
                         <span><i class="fas fa-snowflake"></i> Máy lạnh</span>
@@ -100,12 +124,71 @@
                     </div>
                 </div>
 
-                <div class="bg-white p-4 rounded shadow-sm">
-                    <h4 class="fw-bold mb-3">Đánh giá</h4>
-                    <div class="alert alert-light text-center py-4">
-                        <i class="fas fa-comments fa-2x text-muted mb-2"></i>
-                        <p>Chưa có bình luận nào. Hãy đặt bàn và trải nghiệm ngay!</p>
-                    </div>
+                <!-- Feedbacks Section -->
+                <div class="bg-white p-4 rounded shadow-sm mb-4">
+                    <h4 class="fw-bold mb-3"><i class="fas fa-star"></i> Đánh giá từ khách hàng</h4>
+                    
+                    {% if feedbacks %}
+                        <!-- Rating Breakdown -->
+                        <div class="mb-4 pb-4 border-bottom">
+                            <h6 class="fw-bold mb-3">Phân bố đánh giá</h6>
+                            {% for rating, count in rating_counts.items %}
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <small style="min-width: 50px;">
+                                        {% for i in "12345" %}
+                                            {% with forloop.counter as star_num %}
+                                                {% if star_num <= rating %}
+                                                    <i class="fas fa-star text-warning"></i>
+                                                {% else %}
+                                                    <i class="far fa-star text-warning"></i>
+                                                {% endif %}
+                                            {% endwith %}
+                                        {% endfor %}
+                                    </small>
+                                    <div class="progress flex-grow-1" style="height: 6px;">
+                                        {% widthratio count total_feedbacks 100 as width %}
+                                        <div class="progress-bar bg-warning" style="width: {{ width }}%;"></div>
+                                    </div>
+                                    <small class="text-muted">{{ count }}</small>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Recent Feedbacks -->
+                        <h6 class="fw-bold mb-3">Phản hồi gần đây</h6>
+                        {% for feedback in feedbacks %}
+                            <div class="border-bottom pb-3 mb-3">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <strong>{{ feedback.customer_name }}</strong>
+                                        <div class="small text-warning">
+                                            {% for i in "12345" %}
+                                                {% with forloop.counter as star_num %}
+                                                    {% if star_num <= feedback.rating %}
+                                                        <i class="fas fa-star"></i>
+                                                    {% else %}
+                                                        <i class="far fa-star"></i>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            {% endfor %}
+                                            <span class="text-muted">({{ feedback.get_rating_display }})</span>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">{{ feedback.created_at|date:"d/m/Y" }}</small>
+                                </div>
+                                <p class="mb-0 text-muted" style="font-size: 0.95rem;">{{ feedback.message|truncatechars:100 }}</p>
+                            </div>
+                        {% endfor %}
+                        
+                        <a href="{% url 'admin_feedback_list' restaurant.id %}" class="btn btn-sm btn-outline-secondary w-100 mt-2">
+                            Xem tất cả đánh giá ({{ total_feedbacks }})
+                        </a>
+                    {% else %}
+                        <div class="alert alert-light text-center py-4">
+                            <i class="fas fa-comments fa-2x text-muted mb-2"></i>
+                            <p class="mb-0">Chưa có đánh giá nào. Hãy đặt bàn và gửi phản hồi!</p>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -153,6 +236,9 @@
                     </button>
                     <a href="{% url 'map_detail' restaurant.id %}" class="btn btn-info w-100 mt-2 fw-bold">
                         <i class="fas fa-expand"></i> PHÓNG TO BẢN ĐỒ
+                    </a>
+                    <a href="{% url 'feedback_form' restaurant.id %}" class="btn btn-warning w-100 mt-2 fw-bold">
+                        <i class="fas fa-comments"></i> GỬI PHẢN HỒI
                     </a>
                     <div id="route-status" class="text-center mt-1 small text-muted"></div>
                 </div>

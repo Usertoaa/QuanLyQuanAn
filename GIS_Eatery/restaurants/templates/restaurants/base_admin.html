@@ -47,6 +47,9 @@
             <a href="{% url 'admin_reservations' %}" class="nav-link {% if active_page == 'reservations' %}active{% endif %}">
                 <i class="fas fa-list-alt"></i> Quản lý Đặt bàn
             </a>
+            <a href="{% url 'admin_all_feedbacks' %}" class="nav-link {% if active_page == 'all_feedbacks' %}active{% endif %}">
+                <i class="fas fa-comments"></i> Tất cả phản hồi
+            </a>
             <a href="{% url 'index' %}" class="nav-link mt-5 border-top border-secondary">
                 <i class="fas fa-arrow-left"></i> Về Trang chủ
             </a>
