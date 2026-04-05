@@ -160,75 +160,83 @@
     }
 
     function enableNearMe(sortType = 'near') {
-        switchTab(sortType);
-        var loading = document.getElementById('loading-gps');
-        loading.style.display = 'block';
+    switchTab(sortType);
+    var loading = document.getElementById('loading-gps');
+    loading.style.display = 'block';
 
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function(position) {
-                var lat = position.coords.latitude;
-                var lng = position.coords.longitude;
+    const keyword = document.querySelector('input[name="q"]')?.value || '';
 
-                fetch(`/api/nearby/?lat=${lat}&lng=${lng}&radius=10&sort=${sortType}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        loading.style.display = 'none';
-                        renderNearMeGrid(data, sortType);
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        loading.style.display = 'none';
-                        alert("Lỗi kết nối server!");
-                    });
-            }, function() {
-                loading.style.display = 'none';
-                alert("Vui lòng bật GPS!");
-                switchTab('newest');
-            });
-        } else {
-            alert("Trình duyệt không hỗ trợ GPS.");
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            var lat = position.coords.latitude;
+            var lng = position.coords.longitude;
+
+            const url = `/api/nearby/?lat=${lat}&lng=${lng}&radius=10&sort=${sortType}&q=${encodeURIComponent(keyword)}`;
+
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    loading.style.display = 'none';
+                    renderNearMeGrid(data, sortType, keyword);
+                })
+                .catch(err => {
+                    console.error(err);
+                    loading.style.display = 'none';
+                    alert("Lỗi kết nối server!");
+                });
+        }, function() {
+            loading.style.display = 'none';
+            alert("Vui lòng bật GPS!");
+            switchTab('newest');
+        });
+    } else {
+        alert("Trình duyệt không hỗ trợ GPS.");
+    }
+}
+
+   function renderNearMeGrid(data, sortType = 'near', keyword = '') {
+    var container = document.getElementById('restaurant-grid');
+    container.innerHTML = '';
+
+    if (data.length === 0) {
+        let message = 'Không tìm thấy quán phù hợp.';
+        if (keyword) {
+            message = `Không tìm thấy quán nào có món hoặc từ khóa "${keyword}" trong phạm vi gần bạn.`;
         }
+        container.innerHTML = `<div class="col-12 text-center py-5"><p class="text-muted">${message}</p></div>`;
+        return;
     }
 
-    function renderNearMeGrid(data, sortType = 'near') {
-        var container = document.getElementById('restaurant-grid');
-        container.innerHTML = '';
+    data.forEach(r => {
+        let extraBadge = '';
 
-        if (data.length === 0) {
-            container.innerHTML = '<div class="col-12 text-center py-5"><p class="text-muted">Không tìm thấy quán phù hợp.</p></div>';
-            return;
+        if (sortType === 'cheap' && r.min_price) {
+            extraBadge = `<span class="badge bg-warning text-dark"><i class="fas fa-tags"></i> Từ ${r.min_price.toLocaleString()}đ</span>`;
+        } else if (r.distance !== null) {
+            extraBadge = `<span class="badge bg-success text-white"><i class="fas fa-location-arrow"></i> Cách ${r.distance} km</span>`;
         }
 
-        data.forEach(r => {
-            let extraBadge = '';
-
-            if (sortType === 'cheap' && r.min_price) {
-                extraBadge = `<span class="badge bg-warning text-dark"><i class="fas fa-tags"></i> Từ ${r.min_price.toLocaleString()}đ</span>`;
-            } else if (r.distance !== null) {
-                extraBadge = `<span class="badge bg-success text-white"><i class="fas fa-location-arrow"></i> Cách ${r.distance} km</span>`;
-            }
-
-            var html = `
-            <div class="col">
-                <div class="restaurant-card card h-100 shadow-sm border-0">
-                    <a href="/restaurant/${r.id}/">
-                        <img src="${r.image}" class="card-img-top" style="height: 200px; object-fit: cover; width: 100%;">
-                    </a>
-                    <div class="card-body">
-                        <a href="/restaurant/${r.id}/" class="res-name text-truncate d-block fw-bold text-decoration-none text-dark">${r.name}</a>
-                        <p class="res-address text-truncate mb-1 text-muted small">
-                            <i class="fas fa-map-marker-alt text-danger"></i> ${r.address}
-                        </p>
-                        <div class="d-flex justify-content-between align-items-center mt-2">
-                            <span class="badge bg-light text-secondary border">${r.district}</span>
-                            ${extraBadge}
-                        </div>
+        var html = `
+        <div class="col">
+            <div class="restaurant-card card h-100 shadow-sm border-0">
+                <a href="/restaurant/${r.id}/">
+                    <img src="${r.image}" class="card-img-top" style="height: 200px; object-fit: cover; width: 100%;">
+                </a>
+                <div class="card-body">
+                    <a href="/restaurant/${r.id}/" class="res-name text-truncate d-block fw-bold text-decoration-none text-dark">${r.name}</a>
+                    <p class="res-address text-truncate mb-1 text-muted small">
+                        <i class="fas fa-map-marker-alt text-danger"></i> ${r.address}
+                    </p>
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <span class="badge bg-light text-secondary border">${r.district}</span>
+                        ${extraBadge}
                     </div>
                 </div>
-            </div>`;
-            container.innerHTML += html;
-        });
-    }
+            </div>
+        </div>`;
+        container.innerHTML += html;
+    });
+}
 </script>
 </body>
 </html>

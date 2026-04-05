@@ -109,18 +109,29 @@ def api_get_restaurants(request):
 
 
 def api_nearby_restaurants(request):
-    """API tìm quán gần vị trí User"""
+    """API tìm quán gần vị trí User, có thể lọc theo tên quán / địa chỉ / món ăn"""
     try:
         lat = float(request.GET.get('lat'))
         lng = float(request.GET.get('lng'))
-        radius = float(request.GET.get('radius', 5))
+        radius = float(request.GET.get('radius', 10))
         sort = request.GET.get('sort', 'near')
+        keyword = request.GET.get('q', '').strip()
 
         user_location = Point(lng, lat, srid=4326)
 
         restaurants = Restaurant.objects.filter(
             location__distance_lte=(user_location, D(km=radius))
-        ).annotate(
+        )
+
+        # Lọc theo từ khóa nếu có
+        if keyword:
+            restaurants = restaurants.filter(
+                Q(name__icontains=keyword) |
+                Q(address__icontains=keyword) |
+                Q(dishes__name__icontains=keyword)
+            ).distinct()
+
+        restaurants = restaurants.annotate(
             distance=Distance('location', user_location),
             min_price=Min('dishes__price')
         )
@@ -146,6 +157,7 @@ def api_nearby_restaurants(request):
             })
 
         return JsonResponse(data, safe=False)
+
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
 
