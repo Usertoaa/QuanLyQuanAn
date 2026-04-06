@@ -1,5 +1,6 @@
-from django.contrib.gis.db import models 
-from django.contrib.auth.models import User
+from django.contrib.gis.db import models
+from django.conf import settings
+
 
 class Restaurant(models.Model):
     DISTRICT_CHOICES = [
@@ -20,15 +21,21 @@ class Restaurant(models.Model):
         ('GV', 'Gò Vấp'),
         ('TD', 'Thủ Đức'),
     ]
+
     name = models.CharField(max_length=200)
     address = models.CharField(max_length=300)
     district = models.CharField(max_length=5, choices=DISTRICT_CHOICES, verbose_name="Quận/Huyện")
     image = models.ImageField(upload_to='restaurant_images/', blank=True, null=True, verbose_name="Ảnh quán")
     location = models.PointField(srid=4326)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_pickup_available = models.BooleanField(
+        default=False,
+        verbose_name="Cho phép đặt trước đến lấy món"
+    )
 
     def __str__(self):
         return self.name
+
 
 class Table(models.Model):
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='tables')
@@ -36,23 +43,40 @@ class Table(models.Model):
     capacity = models.IntegerField(default=4)
     is_available = models.BooleanField(default=True)
 
+    def __str__(self):
+        return f"{self.table_number} - {self.restaurant.name}"
+
+
 class Reservation(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Chờ duyệt'),
+        ('confirmed', 'Đã xác nhận'),
+        ('waiting', 'Hàng chờ'),
+        ('completed', 'Hoàn thành'),
+        ('cancelled', 'Đã hủy'),
+    ]
+
     table = models.ForeignKey(Table, on_delete=models.CASCADE)
     customer_name = models.CharField(max_length=100)
     booking_time = models.DateTimeField()
     number_of_people = models.IntegerField()
-    STATUS_CHOICES = [
-        ('pending', '⏳ Chờ xác nhận'),
-        ('confirmed', '✅ Đã duyệt'),
-        ('cancelled', '❌ Đã hủy'),
-    ]
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="Trạng thái")
-
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, verbose_name="Tài khoản đặt")
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending'
+    )
+    queue_position = models.PositiveIntegerField(default=0, verbose_name="Số thứ tự hàng chờ")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
 
     def __str__(self):
-        return f"{self.customer_name} - {self.booking_time}"
-    
+        return f"{self.customer_name} - {self.table.restaurant.name} - {self.booking_time}"
+
+
 class Dish(models.Model):
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='dishes')
     name = models.CharField(max_length=200, verbose_name="Tên món")
@@ -61,14 +85,15 @@ class Dish(models.Model):
     image = models.ImageField(upload_to='dishes/', blank=True, null=True, verbose_name="Ảnh món")
     is_available = models.BooleanField(default=True, verbose_name="Còn món")
     is_price_representative = models.BooleanField(
-    default=False,
-    verbose_name="Dùng làm giá đại diện"
-)
+        default=False,
+        verbose_name="Dùng làm giá đại diện"
+    )
+
     def __str__(self):
         return f"{self.name} ({self.restaurant.name})"
 
+
 class Feedback(models.Model):
-    """Model lưu phản hồi từ khách hàng"""
     RATING_CHOICES = [
         (1, '⭐ Rất tệ'),
         (2, '⭐⭐ Tệ'),
@@ -76,7 +101,7 @@ class Feedback(models.Model):
         (4, '⭐⭐⭐⭐ Tốt'),
         (5, '⭐⭐⭐⭐⭐ Tuyệt vời'),
     ]
-    
+
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='feedbacks')
     customer_name = models.CharField(max_length=100, verbose_name="Tên khách hàng")
     customer_email = models.EmailField(verbose_name="Email")
@@ -84,15 +109,15 @@ class Feedback(models.Model):
     message = models.TextField(verbose_name="Nội dung phản hồi")
     created_at = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False, verbose_name="Đã xem")
-    
+
     def __str__(self):
         return f"{self.customer_name} - {self.restaurant.name} ({self.get_rating_display()})"
 
     class Meta:
         ordering = ['-created_at']
 
+
 class RestaurantImage(models.Model):
-    """Model để lưu ảnh gallery của quán"""
     restaurant = models.ForeignKey(
         Restaurant,
         on_delete=models.CASCADE,
@@ -110,5 +135,56 @@ class RestaurantImage(models.Model):
         verbose_name_plural = "Ảnh quán ăn"
 
 
+class PickupOrder(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Chờ duyệt'),
+        ('confirmed', 'Đã xác nhận'),
+        ('ready', 'Sẵn sàng lấy'),
+        ('completed', 'Đã nhận'),
+        ('cancelled', 'Đã hủy'),
+    ]
+
+    restaurant = models.ForeignKey(
+        Restaurant,
+        on_delete=models.CASCADE,
+        related_name='pickup_orders',
+        verbose_name="Quán"
+    )
+    customer_name = models.CharField(max_length=100, verbose_name="Tên khách hàng")
+    customer_phone = models.CharField(max_length=20, verbose_name="Số điện thoại")
+    pickup_time = models.DateTimeField(verbose_name="Thời gian đến lấy")
+    note = models.TextField(blank=True, verbose_name="Ghi chú")
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        verbose_name="Trạng thái"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Đơn lấy món - {self.customer_name} - {self.restaurant.name}"
 
 
+class PickupOrderItem(models.Model):
+    pickup_order = models.ForeignKey(
+        PickupOrder,
+        on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name="Đơn lấy món"
+    )
+    dish = models.ForeignKey(
+        Dish,
+        on_delete=models.CASCADE,
+        verbose_name="Món ăn"
+    )
+    quantity = models.PositiveIntegerField(default=1, verbose_name="Số lượng")
+
+    def __str__(self):
+        return f"{self.dish.name} x {self.quantity}"

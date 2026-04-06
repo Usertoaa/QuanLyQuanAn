@@ -18,7 +18,7 @@
                                 <label>Tên quán:</label>
                                 <input type="text" name="name" class="form-control" value="{{ restaurant.name|default:'' }}" required>
                             </div>
-                            
+
                             <div class="mb-3">
                                 <label>Quận:</label>
                                 <select name="district" id="district-select" class="form-select">
@@ -26,6 +26,14 @@
                                     <option value="{{ code }}" {% if restaurant.district == code %}selected{% endif %}>{{ name }}</option>
                                     {% endfor %}
                                 </select>
+                            </div>
+
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" name="is_pickup_available" id="pickup_available"
+                                       {% if restaurant and restaurant.is_pickup_available %}checked{% endif %}>
+                                <label class="form-check-label" for="pickup_available">
+                                    Cho phép đặt trước đến lấy món
+                                </label>
                             </div>
 
                             <div class="mb-3">
@@ -73,7 +81,7 @@
                         <div class="col-md-6">
                             <label class="fw-bold text-danger">Vị trí (Kéo thả để chỉnh):</label>
                             <div id="map-picker" style="height: 300px; border: 1px solid #ddd;"></div>
-                            
+
                             <input type="hidden" name="lat" id="lat" value="{{ restaurant.location.y|default:'' }}" required>
                             <input type="hidden" name="lng" id="lng" value="{{ restaurant.location.x|default:'' }}" required>
                         </div>
@@ -246,33 +254,39 @@
         });
     }
 
-   async function fetchGeocode(query) {
-    const url = `/api/geocode-address/?q=${encodeURIComponent(query)}`;
-    const response = await fetch(url, {
-        headers: { 'Accept': 'application/json' }
-    });
+    async function fetchGeocode(query) {
+        const url = `/api/geocode-address/?q=${encodeURIComponent(query)}`;
+        const response = await fetch(url, {
+            headers: { 'Accept': 'application/json' }
+        });
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Geocode API error:', errorText);
-        throw new Error('Không thể kết nối dịch vụ geocoding');
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Geocode API error:', errorText);
+            throw new Error('Không thể kết nối dịch vụ geocoding');
+        }
+
+        return await response.json();
     }
 
-    return await response.json();
-}
+    async function fetchReverseGeocode(lat, lng) {
+        const url = `/api/reverse-geocode-address/?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`;
+        const response = await fetch(url, {
+            headers: { 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Reverse geocode API error:', errorText);
+            throw new Error('Không thể reverse geocode');
+        }
+
+        return await response.json();
+    }
 
     async function reverseGeocode(lat, lng) {
         try {
-            const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=vi&countrycodes=vn&addressdetails=1`;
-            const response = await fetch(url, {
-                headers: { 'Accept': 'application/json' }
-            });
-
-            if (!response.ok) {
-                throw new Error('Không thể reverse geocode');
-            }
-
-            const data = await response.json();
+            const data = await fetchReverseGeocode(lat, lng);
 
             if (data) {
                 syncDistrictFromResult(data);
@@ -331,15 +345,6 @@
 
             updateMarker(lat, lng, 18);
             syncDistrictFromResult(result);
-
-            // Không ghi đè bằng display_name thô vì dễ sinh địa chỉ sai.
-            // Giữ nguyên địa chỉ người dùng đã nhập; chỉ chuẩn hóa nhẹ nếu ô đang trống.
-            if (!addressInput.value.trim()) {
-                const cleanAddress = buildCleanAddress(result);
-                if (cleanAddress) {
-                    addressInput.value = cleanAddress;
-                }
-            }
         } catch (error) {
             console.error('Geocoding error:', error);
             alert('Lỗi kết nối dịch vụ bản đồ.');
@@ -353,11 +358,6 @@
     mapPicker.on('click', function(e) {
         updateMarker(e.latlng.lat, e.latlng.lng, 18);
         reverseGeocode(e.latlng.lat, e.latlng.lng);
-    });
-
-    districtSelect.addEventListener('change', function() {
-        // Không tự đổi địa chỉ khi người dùng đổi quận.
-        // Quận chỉ được dùng để hỗ trợ geocode chính xác hơn.
     });
 </script>
 {% endblock %}

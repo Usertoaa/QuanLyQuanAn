@@ -10,7 +10,7 @@
             <div class="card-body">
                 <form method="POST" enctype="multipart/form-data">
                     {% csrf_token %}
-                    
+
                     <div class="mb-3">
                         <label>Tên món:</label>
                         <input type="text" name="name" class="form-control" value="{{ dish.name|default:'' }}" required>

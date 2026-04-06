@@ -4,35 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ restaurant.name }} - Foody Clone</title>
-    
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
-    
+
     <style>
         :root { --primary-color: #cf2127; }
         body { background-color: #f6f6f6; font-family: 'Segoe UI', sans-serif; }
-        
-        /* Ảnh bìa to */
+
         .hero-image {
-            width: 100%; height: 400px; object-fit: cover;
+            width: 100%;
+            height: 400px;
+            object-fit: cover;
             border-radius: 0 0 10px 10px;
         }
-        
-        /* Cột bên phải trôi theo màn hình */
+
         .sticky-sidebar {
-            position: sticky; top: 20px;
-            background: white; padding: 20px; border-radius: 8px;
+            position: sticky;
+            top: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
 
         .res-title { font-weight: bold; color: #333; }
         .res-address { color: #555; font-size: 1.1rem; }
-        
-        /* Món ăn */
+
         .dish-card { transition: all 0.2s; border: 1px solid #eee; }
         .dish-card:hover { transform: translateY(-3px); box-shadow: 0 5px 10px rgba(0,0,0,0.05); }
+
+        .pickup-item {
+            border-bottom: 1px solid #eee;
+            padding: 10px 0;
+        }
+
+        .pickup-item:last-child {
+            border-bottom: none;
+        }
+
+        .qty-input {
+            width: 90px;
+        }
     </style>
 </head>
 <body>
@@ -56,10 +71,11 @@
             <div class="col-lg-8">
                 <div class="bg-white p-4 rounded shadow-sm mb-4">
                     <h1 class="res-title">{{ restaurant.name }}</h1>
-                    <p class="res-address mb-2"><i class="fas fa-map-marker-alt text-danger"></i> {{ restaurant.address }}</p>
+                    <p class="res-address mb-2">
+                        <i class="fas fa-map-marker-alt text-danger"></i> {{ restaurant.address }}
+                    </p>
                     <span class="badge bg-success">{{ restaurant.get_district_display }}</span>
-                    
-                    <!-- Rating Section -->
+
                     {% if total_feedbacks > 0 %}
                     <div class="mt-3 p-3 bg-light rounded d-flex align-items-center gap-3">
                         <div class="text-center">
@@ -82,8 +98,8 @@
                         </div>
                     </div>
                     {% endif %}
-                    
-                    <div class="mt-3 text-secondary d-flex gap-3">
+
+                    <div class="mt-3 text-secondary d-flex gap-3 flex-wrap">
                         <span><i class="fas fa-wifi"></i> Free Wifi</span>
                         <span><i class="fas fa-snowflake"></i> Máy lạnh</span>
                         <span><i class="fas fa-parking"></i> Giữ xe</span>
@@ -93,7 +109,7 @@
 
                 <div class="bg-white p-4 rounded shadow-sm mb-4">
                     <h4 class="fw-bold mb-3 border-start border-4 border-danger ps-2">Thực đơn quán</h4>
-                    
+
                     <div class="row row-cols-1 row-cols-md-2 g-3">
                         {% for dish in restaurant.dishes.all %}
                             {% if dish.is_available %}
@@ -124,12 +140,10 @@
                     </div>
                 </div>
 
-                <!-- Feedbacks Section -->
                 <div class="bg-white p-4 rounded shadow-sm mb-4">
                     <h4 class="fw-bold mb-3"><i class="fas fa-star"></i> Đánh giá từ khách hàng</h4>
-                    
+
                     {% if feedbacks %}
-                        <!-- Rating Breakdown -->
                         <div class="mb-4 pb-4 border-bottom">
                             <h6 class="fw-bold mb-3">Phân bố đánh giá</h6>
                             {% for rating, count in rating_counts.items %}
@@ -154,7 +168,6 @@
                             {% endfor %}
                         </div>
 
-                        <!-- Recent Feedbacks -->
                         <h6 class="fw-bold mb-3">Phản hồi gần đây</h6>
                         {% for feedback in feedbacks %}
                             <div class="border-bottom pb-3 mb-3">
@@ -179,14 +192,14 @@
                                 <p class="mb-0 text-muted" style="font-size: 0.95rem;">{{ feedback.message|truncatechars:100 }}</p>
                             </div>
                         {% endfor %}
-                        
-                        <a href="{% url 'admin_feedback_list' restaurant.id %}" class="btn btn-sm btn-outline-secondary w-100 mt-2">
-                            Xem tất cả đánh giá ({{ total_feedbacks }})
+
+                        <a href="{% url 'feedback_form' restaurant.id %}" class="btn btn-sm btn-outline-secondary w-100 mt-2">
+                            Gửi thêm đánh giá
                         </a>
                     {% else %}
                         <div class="alert alert-light text-center py-4">
                             <i class="fas fa-comments fa-2x text-muted mb-2"></i>
-                            <p class="mb-0">Chưa có đánh giá nào. Hãy đặt bàn và gửi phản hồi!</p>
+                            <p class="mb-0">Chưa có đánh giá nào. Hãy đặt bàn hoặc gửi phản hồi!</p>
                         </div>
                     {% endif %}
                 </div>
@@ -194,43 +207,101 @@
 
             <div class="col-lg-4">
                 <div class="sticky-sidebar">
-                    <h4 class="text-danger fw-bold text-center mb-3">ĐẶT BÀN NGAY</h4>
-                    
-                    <form id="booking-form" onsubmit="submitBooking(event)">
-                        <input type="hidden" name="restaurant_id" value="{{ restaurant.id }}">
-                        
-                        <div class="mb-3">
-                            <label class="fw-bold small">Họ tên:</label>
-                            <input type="text" name="name" class="form-control" placeholder="Nhập tên..." required>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="fw-bold small">Thời gian:</label>
-                            <input type="datetime-local" name="time" class="form-control" required>
-                        </div>
+                    {% if restaurant.is_pickup_available %}
+                        <h4 class="text-danger fw-bold text-center mb-3">ĐẶT TRƯỚC ĐẾN LẤY</h4>
 
-                        <div class="mb-3">
-                            <label class="fw-bold small">Số người:</label>
-                            <select name="people" class="form-select">
-                                <option value="2">2 người</option>
-                                <option value="4" selected>4 người</option>
-                                <option value="6">6 người</option>
-                                <option value="10">10+ người</option>
-                            </select>
-                        </div>
+                        <form id="pickup-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="restaurant_id" value="{{ restaurant.id }}">
 
-                        <button type="submit" class="btn btn-danger w-100 fw-bold py-2">
-                            XÁC NHẬN ĐẶT BÀN
-                        </button>
-                    </form>
+                            <div class="mb-3">
+                                <label class="fw-bold small">Họ tên:</label>
+                                <input type="text" name="customer_name" class="form-control" placeholder="Nhập tên..." required>
+                            </div>
 
-                    <div id="msg-box" class="mt-2 text-center small fw-bold"></div>
+                            <div class="mb-3">
+                                <label class="fw-bold small">Số điện thoại:</label>
+                                <input type="text" name="customer_phone" class="form-control" placeholder="Nhập số điện thoại..." required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="fw-bold small">Thời gian đến lấy:</label>
+                                <input type="datetime-local" name="pickup_time" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="fw-bold small">Ghi chú:</label>
+                                <textarea name="note" class="form-control" rows="2" placeholder="Ví dụ: ít cay, không rau..."></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="fw-bold small d-block mb-2">Chọn món:</label>
+                                <div class="border rounded p-2" style="max-height: 280px; overflow-y: auto;">
+                                    {% for dish in restaurant.dishes.all %}
+                                        {% if dish.is_available %}
+                                        <div class="pickup-item d-flex justify-content-between align-items-center">
+                                            <div class="me-2">
+                                                <div class="fw-bold">{{ dish.name }}</div>
+                                                <small class="text-danger">{{ dish.price|floatformat:0 }}đ</small>
+                                            </div>
+                                            <input type="number"
+                                                   class="form-control qty-input pickup-qty"
+                                                   data-dish-id="{{ dish.id }}"
+                                                   min="0"
+                                                   value="0">
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <small class="text-muted">Nhập số lượng lớn hơn 0 cho món bạn muốn đặt trước.</small>
+                            </div>
+
+                            <button type="submit" class="btn btn-danger w-100 fw-bold py-2">
+                                XÁC NHẬN ĐẶT LẤY
+                            </button>
+                        </form>
+
+                        <div id="pickup-msg-box" class="mt-2 text-center small fw-bold"></div>
+                    {% else %}
+                        <h4 class="text-danger fw-bold text-center mb-3">ĐẶT BÀN NGAY</h4>
+
+                        <form id="booking-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="restaurant_id" value="{{ restaurant.id }}">
+
+                            <div class="mb-3">
+                                <label class="fw-bold small">Họ tên:</label>
+                                <input type="text" name="name" class="form-control" placeholder="Nhập tên..." required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="fw-bold small">Thời gian:</label>
+                                <input type="datetime-local" name="time" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="fw-bold small">Số người:</label>
+                                <select name="people" class="form-select">
+                                    <option value="2">2 người</option>
+                                    <option value="4" selected>4 người</option>
+                                    <option value="6">6 người</option>
+                                    <option value="8">8 người</option>
+                                </select>
+                            </div>
+
+                            <button type="submit" class="btn btn-danger w-100 fw-bold py-2">
+                                XÁC NHẬN ĐẶT BÀN
+                            </button>
+                        </form>
+
+                        <div id="msg-box" class="mt-2 text-center small fw-bold"></div>
+                    {% endif %}
 
                     <hr class="my-4">
 
                     <h6 class="fw-bold"><i class="fas fa-map text-primary"></i> Vị trí quán</h6>
                     <div id="mini-map" style="height: 250px; width: 100%; border-radius: 5px; border:1px solid #ddd;"></div>
-                    
+
                     <button class="btn btn-primary w-100 mt-2 fw-bold" onclick="routeToRestaurant()">
                         <i class="fas fa-directions"></i> CHỈ ĐƯỜNG ĐẾN ĐÂY
                     </button>
@@ -249,27 +320,23 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
-    
+
     <script>
-        // 1. KHỞI TẠO BẢN ĐỒ (Đã fix lỗi cú pháp cho VS Code)
-        // Sử dụng dấu nháy kép bao quanh thẻ template để thành chuỗi, sau đó parse ra số
         var restaurantLat = parseFloat("{{ restaurant.location.y|stringformat:'f' }}");
         var restaurantLng = parseFloat("{{ restaurant.location.x|stringformat:'f' }}");
-        
+
         var map = L.map('mini-map').setView([restaurantLat, restaurantLng], 15);
-        // Sử dụng CartoDB thay vì OpenStreetMap để tránh lỗi Referer 403
+
         L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
             subdomains: 'abcd'
         }).addTo(map);
-        
-        // Marker của quán
+
         L.marker([restaurantLat, restaurantLng]).addTo(map)
             .bindPopup("<b>{{ restaurant.name }}</b>").openPopup();
 
         var routingControl = null;
 
-        // 2. HÀM CHỈ ĐƯỜNG (Routing)
         function routeToRestaurant() {
             var statusDiv = document.getElementById('route-status');
             statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lấy vị trí...';
@@ -281,30 +348,26 @@
 
                     statusDiv.innerHTML = 'Đang vẽ đường...';
 
-                    // Xóa đường cũ nếu có
                     if (routingControl) map.removeControl(routingControl);
 
-                    // Vẽ đường mới
                     routingControl = L.Routing.control({
                         waypoints: [
-                            L.latLng(userLat, userLng), // Điểm A: User
-                            L.latLng(restaurantLat, restaurantLng) // Điểm B: Quán
+                            L.latLng(userLat, userLng),
+                            L.latLng(restaurantLat, restaurantLng)
                         ],
-                        createMarker: function(i, wp, nWps) {
-                            // Chỉ tạo marker cho User (điểm đầu), Quán đã có marker rồi
+                        createMarker: function(i, wp) {
                             if (i === 0) {
                                 return L.marker(wp.latLng).bindPopup("Vị trí của bạn");
                             }
                             return null;
                         },
                         lineOptions: { styles: [{color: 'blue', opacity: 0.7, weight: 5}] },
-                        show: false // Ẩn bảng chỉ dẫn chữ để đỡ chật
+                        show: false
                     }).addTo(map);
 
-                    // Zoom để thấy cả 2 điểm
                     var bounds = L.latLngBounds([[userLat, userLng], [restaurantLat, restaurantLng]]);
                     map.fitBounds(bounds, {padding: [50, 50]});
-                    
+
                     statusDiv.innerHTML = 'Đã tìm thấy đường đi!';
                 }, function() {
                     statusDiv.innerHTML = '';
@@ -314,41 +377,106 @@
                 alert("Trình duyệt không hỗ trợ GPS.");
             }
         }
-        // 3. HÀM GỬI ĐẶT BÀN (AJAX)
-        function submitBooking(e) {
-            e.preventDefault();
-            var form = e.target;
-            var formData = new FormData(form);
-            var btn = form.querySelector('button');
-            var msgBox = document.getElementById('msg-box');
 
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
-            msgBox.innerHTML = '';
+        document.addEventListener('DOMContentLoaded', function () {
+            const bookingForm = document.getElementById('booking-form');
+            const pickupForm = document.getElementById('pickup-form');
 
-            fetch('/api/book/', {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    msgBox.className = "mt-2 text-center small fw-bold text-success";
-                    msgBox.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
-                    form.reset();
-                } else {
-                    msgBox.className = "mt-2 text-center small fw-bold text-danger";
-                    msgBox.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + data.message;
-                }
-                btn.disabled = false;
-                btn.innerHTML = 'XÁC NHẬN ĐẶT BÀN';
-            })
-            .catch(err => {
-                alert("Lỗi kết nối Server!");
-                btn.disabled = false;
-                btn.innerHTML = 'XÁC NHẬN ĐẶT BÀN';
-            });
-        }
+            if (bookingForm) {
+                bookingForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+
+                    var formData = new FormData(bookingForm);
+                    var btn = bookingForm.querySelector('button');
+                    var msgBox = document.getElementById('msg-box');
+
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+                    msgBox.innerHTML = '';
+
+                    fetch('/api/book/', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            msgBox.className = "mt-2 text-center small fw-bold text-success";
+                            msgBox.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
+                            bookingForm.reset();
+                        } else {
+                            msgBox.className = "mt-2 text-center small fw-bold text-danger";
+                            msgBox.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + data.message;
+                        }
+                        btn.disabled = false;
+                        btn.innerHTML = 'XÁC NHẬN ĐẶT BÀN';
+                    })
+                    .catch(() => {
+                        msgBox.className = "mt-2 text-center small fw-bold text-danger";
+                        msgBox.innerHTML = '<i class="fas fa-exclamation-circle"></i> Lỗi kết nối Server!';
+                        btn.disabled = false;
+                        btn.innerHTML = 'XÁC NHẬN ĐẶT BÀN';
+                    });
+                });
+            }
+
+            if (pickupForm) {
+                pickupForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+
+                    const formData = new FormData(pickupForm);
+                    const msgBox = document.getElementById('pickup-msg-box');
+                    const btn = pickupForm.querySelector('button');
+                    const qtyInputs = document.querySelectorAll('.pickup-qty');
+
+                    let hasItem = false;
+
+                    qtyInputs.forEach(input => {
+                        const qty = parseInt(input.value || '0', 10);
+                        if (qty > 0) {
+                            hasItem = true;
+                            formData.append('dish_ids[]', input.dataset.dishId);
+                            formData.append('quantities[]', qty);
+                        }
+                    });
+
+                    if (!hasItem) {
+                        msgBox.className = "mt-2 text-center small fw-bold text-danger";
+                        msgBox.innerHTML = '<i class="fas fa-exclamation-circle"></i> Bạn chưa chọn món nào.';
+                        return;
+                    }
+
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+                    msgBox.innerHTML = '';
+
+                    fetch('/api/pickup/', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            msgBox.className = "mt-2 text-center small fw-bold text-success";
+                            msgBox.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
+                            pickupForm.reset();
+                            document.querySelectorAll('.pickup-qty').forEach(input => input.value = 0);
+                        } else {
+                            msgBox.className = "mt-2 text-center small fw-bold text-danger";
+                            msgBox.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + data.message;
+                        }
+                        btn.disabled = false;
+                        btn.innerHTML = 'XÁC NHẬN ĐẶT LẤY';
+                    })
+                    .catch(() => {
+                        msgBox.className = "mt-2 text-center small fw-bold text-danger";
+                        msgBox.innerHTML = '<i class="fas fa-exclamation-circle"></i> Lỗi kết nối Server!';
+                        btn.disabled = false;
+                        btn.innerHTML = 'XÁC NHẬN ĐẶT LẤY';
+                    });
+                });
+            }
+        });
     </script>
 </body>
 </html>

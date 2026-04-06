@@ -12,11 +12,13 @@ urlpatterns = [
     path('my-history/', views.user_booking_history, name='user_booking_history'),
 
     # API URLs
+
     path('api/restaurants/', views.api_get_restaurants, name='api_get_restaurants'),
     path('api/nearby/', views.api_nearby_restaurants, name='api_nearby'),
     path('api/book/', views.api_book_table, name='api_book_table'),
+    path('api/pickup/', views.api_pickup_order, name='api_pickup_order'),
     path('api/geocode-address/', views.api_geocode_address, name='api_geocode_address'),
-
+    
     # Admin URLs
     path('admin/', views.admin_dashboard, name='admin_dashboard'),
 
