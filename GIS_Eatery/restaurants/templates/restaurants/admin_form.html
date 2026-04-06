@@ -246,13 +246,15 @@
         });
     }
 
-    async function fetchGeocode(query) {
+   async function fetchGeocode(query) {
     const url = `/api/geocode-address/?q=${encodeURIComponent(query)}`;
     const response = await fetch(url, {
         headers: { 'Accept': 'application/json' }
     });
 
     if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Geocode API error:', errorText);
         throw new Error('Không thể kết nối dịch vụ geocoding');
     }
 

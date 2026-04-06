@@ -10,41 +10,45 @@ urlpatterns = [
     path('map/', views.user_map, name='user_map'),
     path('map/<int:pk>/', views.map_detail, name='map_detail'),
     path('my-history/', views.user_booking_history, name='user_booking_history'),
+
     # API URLs
     path('api/restaurants/', views.api_get_restaurants, name='api_get_restaurants'),
     path('api/nearby/', views.api_nearby_restaurants, name='api_nearby'),
     path('api/book/', views.api_book_table, name='api_book_table'),
+    path('api/geocode-address/', views.api_geocode_address, name='api_geocode_address'),
 
     # Admin URLs
     path('admin/', views.admin_dashboard, name='admin_dashboard'),
 
-    path('my-admin/restaurants/', views.admin_restaurant_list, name='admin_restaurant_list'),
-    # Quan Ly Quan An
+    # Quản lý quán ăn
     path('my-admin/restaurants/', views.admin_restaurant_list, name='admin_restaurant_list'),
     path('my-admin/restaurants/add/', views.admin_restaurant_form, name='admin_restaurant_add'),
     path('my-admin/restaurants/edit/<int:pk>/', views.admin_restaurant_form, name='admin_restaurant_edit'),
     path('my-admin/restaurants/delete/<int:pk>/', views.admin_restaurant_delete, name='admin_restaurant_delete'),
-    # Quan Ly Dat Ban
+
+    # Quản lý đặt bàn
     path('my-admin/all-bookings/', views.admin_all_bookings, name='admin_reservations'),
     path('my-admin/restaurant/<int:pk>/bookings/', views.admin_booking_list, name='admin_booking_list'),
     path('restaurant/<int:pk>/', views.restaurant_detail, name='restaurant_detail'),
     path('my-admin/booking/update/<int:booking_id>/<str:status>/', views.admin_update_booking_status, name='admin_update_booking_status'),
-    # Quan Ly Mon An
+
+    # Quản lý món ăn
     path('my-admin/restaurant/<int:pk>/menu/', views.admin_menu_list, name='admin_menu_list'),
     path('my-admin/restaurant/<int:pk>/menu/add/', views.admin_dish_form, name='admin_dish_add'),
     path('my-admin/menu/edit/<int:dish_id>/', views.admin_dish_edit, name='admin_dish_edit'),
     path('my-admin/menu/delete/<int:dish_id>/', views.admin_dish_delete, name='admin_dish_delete'),
-    # Quan Ly Phan Hoi
+
+    # Quản lý phản hồi
     path('restaurant/<int:pk>/feedback/', views.feedback_form, name='feedback_form'),
     path('my-admin/restaurant/<int:pk>/feedbacks/', views.admin_feedback_list, name='admin_feedback_list'),
     path('my-admin/all-feedbacks/', views.admin_all_feedbacks, name='admin_all_feedbacks'),
     path('my-admin/feedback/<int:feedback_id>/read/', views.admin_mark_feedback_as_read, name='mark_feedback_as_read'),
-    # Dang Ky / Dang Nhap / Dang Xuat
+
+    # Đăng ký / đăng nhập / đăng xuất
     path('register/', views.register_view, name='register'),
     path('login/', auth_views.LoginView.as_view(template_name='restaurants/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='index'), name='logout'),
 ]
+
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-path('api/geocode-address/', views.api_geocode_address, name='api_geocode_address'),
