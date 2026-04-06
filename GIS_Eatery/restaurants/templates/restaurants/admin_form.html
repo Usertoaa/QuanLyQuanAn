@@ -247,17 +247,17 @@
     }
 
     async function fetchGeocode(query) {
-        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=5&accept-language=vi&countrycodes=vn&addressdetails=1`;
-        const response = await fetch(url, {
-            headers: { 'Accept': 'application/json' }
-        });
+    const url = `/api/geocode-address/?q=${encodeURIComponent(query)}`;
+    const response = await fetch(url, {
+        headers: { 'Accept': 'application/json' }
+    });
 
-        if (!response.ok) {
-            throw new Error('Không thể kết nối dịch vụ geocoding');
-        }
-
-        return await response.json();
+    if (!response.ok) {
+        throw new Error('Không thể kết nối dịch vụ geocoding');
     }
+
+    return await response.json();
+}
 
     async function reverseGeocode(lat, lng) {
         try {

@@ -1,4 +1,5 @@
 import json
+import requests
 from django.shortcuts import get_object_or_404, render, redirect
 from django.http import JsonResponse
 from django.core.serializers import serialize
@@ -17,7 +18,7 @@ from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.db.models.functions import Coalesce
 from .models import Restaurant, Table, Reservation, Dish, Feedback, RestaurantImage
-
+from django.views.decorators.http import require_GET
 # PHẦN 1: PUBLIC USER VIEWS (Giao diện cho người dùng)
 
 def index(request):
@@ -706,3 +707,33 @@ def send_feedback_confirmation_email(feedback):
         html_message=html_message,
         fail_silently=False,
     )
+
+
+@require_GET
+def api_geocode_address(request):
+    query = request.GET.get('q', '').strip()
+
+    if not query:
+        return JsonResponse({'error': 'Thiếu địa chỉ cần tìm'}, status=400)
+
+    try:
+        response = requests.get(
+            'https://nominatim.openstreetmap.org/search',
+            params={
+                'format': 'jsonv2',
+                'q': query,
+                'limit': 5,
+                'accept-language': 'vi',
+                'countrycodes': 'vn',
+                'addressdetails': 1
+            },
+            headers={
+                'User-Agent': 'GIS_Eatery/1.0'
+            },
+            timeout=10
+        )
+        response.raise_for_status()
+        return JsonResponse(response.json(), safe=False)
+
+    except requests.RequestException as e:
+        return JsonResponse({'error': f'Lỗi geocoding: {str(e)}'}, status=500)
