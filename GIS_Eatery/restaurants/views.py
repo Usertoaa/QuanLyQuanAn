@@ -165,7 +165,13 @@ def api_nearby_restaurants(request):
 
         user_location = Point(lng, lat, srid=4326)
 
-        cheapest_dish_qs = Dish.objects.filter(
+        representative_qs = Dish.objects.filter(
+            restaurant=OuterRef('pk'),
+            is_available=True,
+            is_price_representative=True
+        ).order_by('price')
+
+        fallback_qs = Dish.objects.filter(
             restaurant=OuterRef('pk'),
             is_available=True
         ).order_by('price')
@@ -183,8 +189,14 @@ def api_nearby_restaurants(request):
 
         restaurants = restaurants.annotate(
             distance=Distance('location', user_location),
-            min_price=Subquery(cheapest_dish_qs.values('price')[:1]),
-            cheapest_dish_name=Subquery(cheapest_dish_qs.values('name')[:1])
+            min_price=Coalesce(
+                Subquery(representative_qs.values('price')[:1]),
+                Subquery(fallback_qs.values('price')[:1])
+            ),
+            cheapest_dish_name=Coalesce(
+                Subquery(representative_qs.values('name')[:1]),
+                Subquery(fallback_qs.values('name')[:1])
+            )
         )
 
         if sort == 'cheap':
