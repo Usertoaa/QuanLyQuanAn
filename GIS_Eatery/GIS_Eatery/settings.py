@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+GDAL_LIBRARY_PATH = r"C:\Users\HO VAN THINH\Downloads\bin\gdal312.dll"
+GEOS_LIBRARY_PATH = r"C:\Users\HO VAN THINH\Downloads\bin\geos_c.dll"
 # Windows GDAL/GEOS configuration
 if os.name == 'nt':
     import ctypes

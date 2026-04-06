@@ -63,7 +63,10 @@
                                         <i class="fas fa-search"></i>
                                     </button>
                                 </div>
-                                <small class="text-muted">Có thể nhập địa chỉ rồi bấm kính lúp, hoặc bấm trực tiếp trên bản đồ để tự lấy địa chỉ.</small>
+                                <small class="text-muted">
+                                    Nên nhập số nhà + tên đường. Hệ thống sẽ ưu tiên tìm theo quận đã chọn.
+                                    Bạn cũng có thể bấm trực tiếp trên bản đồ để lấy vị trí.
+                                </small>
                             </div>
                         </div>
 
@@ -85,15 +88,24 @@
 
 {% block scripts %}
 <script>
-    var defaultLat = 10.7626, defaultLng = 106.6602;
+    const defaultLat = 10.7626;
+    const defaultLng = 106.6602;
 
-    var currentLat = document.getElementById('lat').value;
-    var currentLng = document.getElementById('lng').value;
+    const latInput = document.getElementById('lat');
+    const lngInput = document.getElementById('lng');
+    const addressInput = document.getElementById('address-input');
+    const districtSelect = document.getElementById('district-select');
 
-    var mapCenter = (currentLat && currentLng) ? [parseFloat(currentLat), parseFloat(currentLng)] : [defaultLat, defaultLng];
-    var zoomLevel = (currentLat && currentLng) ? 16 : 12;
+    const currentLat = latInput.value;
+    const currentLng = lngInput.value;
 
-    var mapPicker = L.map('map-picker').setView(mapCenter, zoomLevel);
+    const mapCenter = (currentLat && currentLng)
+        ? [parseFloat(currentLat), parseFloat(currentLng)]
+        : [defaultLat, defaultLng];
+
+    const zoomLevel = (currentLat && currentLng) ? 16 : 12;
+
+    const mapPicker = L.map('map-picker').setView(mapCenter, zoomLevel);
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
@@ -101,8 +113,8 @@
         maxZoom: 20
     }).addTo(mapPicker);
 
-    var marker;
-    var radiusCircle;
+    let marker = null;
+    let radiusCircle = null;
 
     const districtMap = {
         '1': 'Quận 1',
@@ -123,77 +135,167 @@
         'TD': 'Thủ Đức'
     };
 
-    function updateMarker(lat, lng, zoom = 16) {
-    if (marker) {
-        mapPicker.removeLayer(marker);
+    function normalizeText(text) {
+        return (text || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
     }
 
-    if (radiusCircle) {
-        mapPicker.removeLayer(radiusCircle);
+    function getSelectedDistrictName() {
+        return districtMap[districtSelect.value] || '';
     }
 
-    marker = L.marker([lat, lng], { draggable: true }).addTo(mapPicker);
-
-    radiusCircle = L.circle([lat, lng], {
-        radius: 5000, // 5km = 5000m
-        color: 'red',
-        fillColor: '#ff4d4f',
-        fillOpacity: 0.12,
-        weight: 2
-    }).addTo(mapPicker);
-
-    mapPicker.setView([lat, lng], zoom);
-
-    document.getElementById('lat').value = lat;
-    document.getElementById('lng').value = lng;
-
-    marker.on('dragend', function() {
-        var pos = marker.getLatLng();
-
-        document.getElementById('lat').value = pos.lat;
-        document.getElementById('lng').value = pos.lng;
-
-        radiusCircle.setLatLng(pos);
-        reverseGeocode(pos.lat, pos.lng);
-    });
-}
-
-    async function reverseGeocode(lat, lng) {
-        try {
-            const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=vi&countrycodes=vn`;
-            const response = await fetch(url, {
-                headers: { 'Accept': 'application/json' }
-            });
-            const data = await response.json();
-
-            if (data && data.display_name) {
-                document.getElementById('address-input').value = data.display_name;
-            } else {
-                document.getElementById('address-input').value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    function findDistrictCodeByName(name) {
+        const target = normalizeText(name);
+        for (const [code, label] of Object.entries(districtMap)) {
+            if (normalizeText(label) === target) {
+                return code;
             }
-        } catch (error) {
-            console.error('Reverse geocoding error:', error);
-            document.getElementById('address-input').value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        }
+        return null;
+    }
+
+    function extractDistrictName(addressObj = {}) {
+        const candidates = [
+            addressObj.city_district,
+            addressObj.borough,
+            addressObj.county,
+            addressObj.state_district,
+            addressObj.suburb
+        ].filter(Boolean);
+
+        for (const candidate of candidates) {
+            const normalizedCandidate = normalizeText(candidate);
+            for (const label of Object.values(districtMap)) {
+                const normalizedLabel = normalizeText(label);
+                if (
+                    normalizedCandidate.includes(normalizedLabel) ||
+                    normalizedLabel.includes(normalizedCandidate)
+                ) {
+                    return label;
+                }
+            }
+        }
+
+        if (normalizeText(addressObj.city).includes('thu duc')) {
+            return 'Thủ Đức';
+        }
+
+        return '';
+    }
+
+    function syncDistrictFromResult(result) {
+        const actualDistrict = extractDistrictName(result.address || {});
+        const code = findDistrictCodeByName(actualDistrict);
+        if (code) {
+            districtSelect.value = code;
         }
     }
 
+    function buildCleanAddress(result) {
+        const a = result.address || {};
+
+        const placeName = result.name || a.amenity || a.shop || a.building || '';
+        const street = [a.house_number, a.road].filter(Boolean).join(' ');
+        const ward = a.suburb || a.neighbourhood || a.quarter || a.hamlet || '';
+        const district = extractDistrictName(a);
+        const city = 'Thành phố Hồ Chí Minh';
+
+        const line1 = [placeName, street].filter(Boolean).join(', ');
+
+        return [line1, ward, district, city, 'Việt Nam']
+            .filter(Boolean)
+            .join(', ');
+    }
+
+    function updateMarker(lat, lng, zoom = 16) {
+        if (marker) {
+            mapPicker.removeLayer(marker);
+        }
+
+        if (radiusCircle) {
+            mapPicker.removeLayer(radiusCircle);
+        }
+
+        marker = L.marker([lat, lng], { draggable: true }).addTo(mapPicker);
+
+        radiusCircle = L.circle([lat, lng], {
+            radius: 5000,
+            color: 'red',
+            fillColor: '#ff4d4f',
+            fillOpacity: 0.12,
+            weight: 2
+        }).addTo(mapPicker);
+
+        mapPicker.setView([lat, lng], zoom);
+
+        latInput.value = lat;
+        lngInput.value = lng;
+
+        marker.on('dragend', function() {
+            const pos = marker.getLatLng();
+
+            latInput.value = pos.lat;
+            lngInput.value = pos.lng;
+
+            radiusCircle.setLatLng(pos);
+            reverseGeocode(pos.lat, pos.lng);
+        });
+    }
+
     async function fetchGeocode(query) {
-        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=5&accept-language=vi&countrycodes=vn`;
+        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=5&accept-language=vi&countrycodes=vn&addressdetails=1`;
         const response = await fetch(url, {
             headers: { 'Accept': 'application/json' }
         });
+
+        if (!response.ok) {
+            throw new Error('Không thể kết nối dịch vụ geocoding');
+        }
+
         return await response.json();
     }
 
-    async function geocodeAddress() {
-        const addressInput = document.getElementById('address-input');
-        const districtSelect = document.getElementById('district-select');
+    async function reverseGeocode(lat, lng) {
+        try {
+            const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=vi&countrycodes=vn&addressdetails=1`;
+            const response = await fetch(url, {
+                headers: { 'Accept': 'application/json' }
+            });
 
+            if (!response.ok) {
+                throw new Error('Không thể reverse geocode');
+            }
+
+            const data = await response.json();
+
+            if (data) {
+                syncDistrictFromResult(data);
+                const cleanAddress = buildCleanAddress(data);
+
+                if (cleanAddress) {
+                    addressInput.value = cleanAddress;
+                } else {
+                    addressInput.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                }
+            } else {
+                addressInput.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+            }
+        } catch (error) {
+            console.error('Reverse geocoding error:', error);
+            addressInput.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        }
+    }
+
+    async function geocodeAddress() {
         let address = addressInput.value.trim();
-        const districtName = districtMap[districtSelect.value] || '';
+        const selectedDistrict = getSelectedDistrictName();
 
         if (!address) {
-            alert("Chưa nhập địa chỉ!");
+            alert('Chưa nhập địa chỉ!');
             return;
         }
 
@@ -201,43 +303,44 @@
 
         try {
             let data = [];
+            const queries = [];
 
-            data = await fetchGeocode(address);
+            if (selectedDistrict) {
+                queries.push(`${address}, ${selectedDistrict}, Thành phố Hồ Chí Minh, Việt Nam`);
+            }
+            queries.push(`${address}, Thành phố Hồ Chí Minh, Việt Nam`);
+            queries.push(address);
+
+            for (const query of queries) {
+                data = await fetchGeocode(query);
+                if (data.length > 0) {
+                    break;
+                }
+            }
 
             if (data.length === 0) {
-                data = await fetchGeocode(`${address}, Hồ Chí Minh, Việt Nam`);
+                alert('Không tìm thấy địa chỉ phù hợp. Hãy nhập rõ số nhà, đường, quận.');
+                return;
             }
 
-            const lower = address.toLowerCase();
-            const hasArea =
-                lower.includes('quận') ||
-                lower.includes('phường') ||
-                lower.includes('huyện') ||
-                lower.includes('bình thạnh') ||
-                lower.includes('gò vấp') ||
-                lower.includes('phú nhuận') ||
-                lower.includes('tân bình') ||
-                lower.includes('tân phú') ||
-                lower.includes('thủ đức');
+            const result = data[0];
+            const lat = parseFloat(result.lat);
+            const lng = parseFloat(result.lon);
 
-            if (data.length === 0 && districtName && !hasArea) {
-                data = await fetchGeocode(`${address}, ${districtName}, Hồ Chí Minh, Việt Nam`);
-            }
+            updateMarker(lat, lng, 18);
+            syncDistrictFromResult(result);
 
-            if (data.length > 0) {
-                const lat = parseFloat(data[0].lat);
-                const lng = parseFloat(data[0].lon);
-                updateMarker(lat, lng, 18);
-
-                if (data[0].display_name) {
-                    addressInput.value = data[0].display_name;
+            // Không ghi đè bằng display_name thô vì dễ sinh địa chỉ sai.
+            // Giữ nguyên địa chỉ người dùng đã nhập; chỉ chuẩn hóa nhẹ nếu ô đang trống.
+            if (!addressInput.value.trim()) {
+                const cleanAddress = buildCleanAddress(result);
+                if (cleanAddress) {
+                    addressInput.value = cleanAddress;
                 }
-            } else {
-                alert("Không tìm thấy địa chỉ phù hợp. Hãy nhập rõ số nhà, đường, quận.");
             }
         } catch (error) {
             console.error('Geocoding error:', error);
-            alert("Lỗi kết nối dịch vụ bản đồ.");
+            alert('Lỗi kết nối dịch vụ bản đồ.');
         }
     }
 
@@ -250,8 +353,9 @@
         reverseGeocode(e.latlng.lat, e.latlng.lng);
     });
 
-    document.getElementById('district-select').addEventListener('change', function() {
-        // Không tự tìm lại khi đổi quận để tránh nhảy sai
+    districtSelect.addEventListener('change', function() {
+        // Không tự đổi địa chỉ khi người dùng đổi quận.
+        // Quận chỉ được dùng để hỗ trợ geocode chính xác hơn.
     });
 </script>
 {% endblock %}
