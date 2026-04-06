@@ -702,10 +702,15 @@ def feedback_form(request, pk):
     restaurant = get_object_or_404(Restaurant, pk=pk)
 
     if request.method == 'POST':
-        customer_name = request.POST.get('customer_name')
-        customer_email = request.POST.get('customer_email')
+        customer_name = request.POST.get('customer_name', '').strip()
+        customer_email = request.POST.get('customer_email', '').strip().lower()
         rating = request.POST.get('rating')
-        message = request.POST.get('message')
+        message = request.POST.get('message', '').strip()
+
+        # Chặn 1 email chỉ đánh giá 1 lần cho mỗi quán
+        if Feedback.objects.filter(restaurant=restaurant, customer_email__iexact=customer_email).exists():
+            flash_msg.error(request, "Email này đã đánh giá quán này rồi. Mỗi email chỉ được đánh giá 1 lần.")
+            return redirect('feedback_form', pk=pk)
 
         feedback = Feedback.objects.create(
             restaurant=restaurant,

@@ -115,7 +115,12 @@ class Feedback(models.Model):
 
     class Meta:
         ordering = ['-created_at']
-
+        constraints = [
+            models.UniqueConstraint(
+                fields=['restaurant', 'customer_email'],
+                name='unique_feedback_email_per_restaurant'
+            )
+        ]
 
 class RestaurantImage(models.Model):
     restaurant = models.ForeignKey(
