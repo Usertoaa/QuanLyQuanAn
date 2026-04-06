@@ -5,7 +5,7 @@ from django.core.serializers import serialize
 from django.contrib.gis.geos import Point
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_datetime 
-from django.db.models import Q, Min
+from django.db.models import Q, Min, OuterRef, Subquery
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.gis.measure import D
 from django.contrib.gis.db.models.functions import Distance
@@ -15,17 +15,36 @@ from django.contrib import messages as flash_msg
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
-
+from django.db.models.functions import Coalesce
 from .models import Restaurant, Table, Reservation, Dish, Feedback, RestaurantImage
 
 # PHẦN 1: PUBLIC USER VIEWS (Giao diện cho người dùng)
 
 def index(request):
-    """Trang chủ: Tìm kiếm, Lọc và Hiển thị danh sách"""
     districts = Restaurant.DISTRICT_CHOICES
-    restaurants = Restaurant.objects.all().order_by('-created_at')
 
-    # Tìm kiếm
+    representative_qs = Dish.objects.filter(
+        restaurant=OuterRef('pk'),
+        is_available=True,
+        is_price_representative=True
+    ).order_by('price')
+
+    fallback_qs = Dish.objects.filter(
+        restaurant=OuterRef('pk'),
+        is_available=True
+    ).order_by('price')
+
+    restaurants = Restaurant.objects.annotate(
+        min_price=Coalesce(
+            Subquery(representative_qs.values('price')[:1]),
+            Subquery(fallback_qs.values('price')[:1])
+        ),
+        cheapest_dish_name=Coalesce(
+            Subquery(representative_qs.values('name')[:1]),
+            Subquery(fallback_qs.values('name')[:1])
+        )
+    ).order_by('-created_at')
+
     search_query = request.GET.get('q')
     if search_query:
         restaurants = restaurants.filter(
@@ -34,17 +53,13 @@ def index(request):
             Q(dishes__name__icontains=search_query)
         ).distinct()
 
-    # Lọc theo Quận
     district_filter = request.GET.get('district')
     if district_filter:
         restaurants = restaurants.filter(district=district_filter)
 
-    # Sắp xếp rẻ nhất
     sort = request.GET.get('sort')
     if sort == 'cheap':
-        restaurants = restaurants.annotate(
-            min_price=Min('dishes__price')
-        ).order_by('min_price', '-created_at')
+        restaurants = restaurants.order_by('min_price', '-created_at')
 
     context = {
         'restaurants': restaurants,
@@ -150,11 +165,15 @@ def api_nearby_restaurants(request):
 
         user_location = Point(lng, lat, srid=4326)
 
+        cheapest_dish_qs = Dish.objects.filter(
+            restaurant=OuterRef('pk'),
+            is_available=True
+        ).order_by('price')
+
         restaurants = Restaurant.objects.filter(
             location__distance_lte=(user_location, D(km=radius))
         )
 
-        # Lọc theo từ khóa nếu có
         if keyword:
             restaurants = restaurants.filter(
                 Q(name__icontains=keyword) |
@@ -164,7 +183,8 @@ def api_nearby_restaurants(request):
 
         restaurants = restaurants.annotate(
             distance=Distance('location', user_location),
-            min_price=Min('dishes__price')
+            min_price=Subquery(cheapest_dish_qs.values('price')[:1]),
+            cheapest_dish_name=Subquery(cheapest_dish_qs.values('name')[:1])
         )
 
         if sort == 'cheap':
@@ -182,6 +202,7 @@ def api_nearby_restaurants(request):
                 'district': r.get_district_display(),
                 'distance': round(r.distance.km, 1) if r.distance else None,
                 'min_price': int(r.min_price) if r.min_price else None,
+                'cheapest_dish_name': r.cheapest_dish_name,
                 'image': img_url,
                 'lat': r.location.y,
                 'lng': r.location.x
@@ -347,18 +368,27 @@ def admin_dish_form(request, pk):
     restaurant = get_object_or_404(Restaurant, pk=pk)
     
     if request.method == "POST":
+        is_price_representative = request.POST.get('is_price_representative') == 'on'
+
+        if is_price_representative:
+            Dish.objects.filter(restaurant=restaurant).update(is_price_representative=False)
+
         Dish.objects.create(
             restaurant=restaurant,
             name=request.POST.get('name'),
             price=request.POST.get('price'),
             description=request.POST.get('description'),
             image=request.FILES.get('image'),
-            is_available=request.POST.get('is_available') == 'on'
+            is_available=request.POST.get('is_available') == 'on',
+            is_price_representative=is_price_representative
         )
-        flash_msg.success(request, "Đã thêm món mới!") 
+        flash_msg.success(request, "Đã thêm món mới!")
         return redirect('admin_menu_list', pk=pk)
 
-    return render(request, 'restaurants/admin_dish_form.html', {'restaurant': restaurant, 'action': 'Thêm'})
+    return render(request, 'restaurants/admin_dish_form.html', {
+        'restaurant': restaurant,
+        'action': 'Thêm'
+    })
 
 
 @user_passes_test(lambda u: u.is_superuser)
@@ -367,18 +397,28 @@ def admin_dish_edit(request, dish_id):
     restaurant = dish.restaurant
 
     if request.method == "POST":
+        is_price_representative = request.POST.get('is_price_representative') == 'on'
+
+        if is_price_representative:
+            Dish.objects.filter(restaurant=restaurant).update(is_price_representative=False)
+
         dish.name = request.POST.get('name')
         dish.price = request.POST.get('price')
         dish.description = request.POST.get('description')
         if request.FILES.get('image'):
             dish.image = request.FILES.get('image')
         dish.is_available = request.POST.get('is_available') == 'on'
+        dish.is_price_representative = is_price_representative
         dish.save()
         
-        flash_msg.success(request, "Cập nhật món thành công!") 
+        flash_msg.success(request, "Cập nhật món thành công!")
         return redirect('admin_menu_list', pk=restaurant.pk)
 
-    return render(request, 'restaurants/admin_dish_form.html', {'restaurant': restaurant, 'dish': dish, 'action': 'Sửa'})
+    return render(request, 'restaurants/admin_dish_form.html', {
+        'restaurant': restaurant,
+        'dish': dish,
+        'action': 'Sửa'
+    })
 
 @user_passes_test(lambda u: u.is_superuser)
 def admin_dish_delete(request, dish_id):

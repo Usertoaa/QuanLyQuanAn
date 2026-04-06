@@ -60,7 +60,10 @@ class Dish(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=0, verbose_name="Giá tiền")
     image = models.ImageField(upload_to='dishes/', blank=True, null=True, verbose_name="Ảnh món")
     is_available = models.BooleanField(default=True, verbose_name="Còn món")
-
+    is_price_representative = models.BooleanField(
+    default=False,
+    verbose_name="Dùng làm giá đại diện"
+)
     def __str__(self):
         return f"{self.name} ({self.restaurant.name})"
 

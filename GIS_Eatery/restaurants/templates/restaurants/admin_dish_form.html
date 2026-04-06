@@ -23,6 +23,11 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label>Ảnh món:</label>
+                            {% if dish.image %}
+                                <div class="mb-2">
+                                    <img src="{{ dish.image.url }}" height="70" class="rounded border">
+                                </div>
+                            {% endif %}
                             <input type="file" name="image" class="form-control">
                         </div>
                     </div>
@@ -33,9 +38,20 @@
                     </div>
 
                     <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" name="is_available" id="avail" 
+                        <input class="form-check-input" type="checkbox" name="is_available" id="avail"
                                {% if not dish or dish.is_available %}checked{% endif %}>
                         <label class="form-check-label" for="avail">Đang bán (Còn hàng)</label>
+                    </div>
+
+                    <div class="form-check form-switch mb-4">
+                        <input class="form-check-input" type="checkbox" name="is_price_representative" id="representative"
+                               {% if dish.is_price_representative %}checked{% endif %}>
+                        <label class="form-check-label" for="representative">
+                            Dùng món này làm giá đại diện ngoài trang chủ
+                        </label>
+                        <div class="form-text">
+                            Chỉ nên chọn cho món chính. Nếu chọn món này, hệ thống sẽ bỏ chọn các món đại diện khác của cùng quán.
+                        </div>
                     </div>
 
                     <div class="d-flex justify-content-end gap-2">
