@@ -204,7 +204,7 @@ def user_map(request):
 
 def map_detail(request, pk):
     restaurant = get_object_or_404(Restaurant, pk=pk)
-    return render(request, 'restaurants/map.html', {'restaurant': restaurant})
+    return render(request, 'restaurants/user_map.html', {'restaurant': restaurant})
 
 
 def map_view(request):
@@ -240,8 +240,18 @@ def user_booking_history(request):
 
 def api_get_restaurants(request):
     restaurants = Restaurant.objects.all()
-    data = serialize('geojson', restaurants, geometry_field='location', fields=('name', 'address'))
-    return JsonResponse(json.loads(data), safe=False)
+    data = []
+    for r in restaurants:
+        data.append({
+            'id': r.id,
+            'name': r.name,
+            'address': r.address,
+            'district': r.get_district_display(),
+            'latitude': r.location.y,
+            'longitude': r.location.x,
+            'image': r.image.url if r.image else '/static/default-restaurant.jpg'
+        })
+    return JsonResponse(data, safe=False)
 
 
 def api_nearby_restaurants(request):
