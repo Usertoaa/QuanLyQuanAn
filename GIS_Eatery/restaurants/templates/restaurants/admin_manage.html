@@ -34,7 +34,7 @@
                     <tr>
                         <td width="80">
                             {% if r.image %}
-                            <img src="{{ r.image.url }}" class="rounded" width="60" height="40" style="object-fit: cover;">
+                           <img src="{{ r.display_image_url }}" alt="{{ r.name }}" class="rounded" width="60" height="40" style="object-fit: cover;">
                             {% else %}
                             <div class="bg-secondary rounded text-white d-flex align-items-center justify-content-center" style="width:60px; height:40px; font-size:10px;">NO IMG</div>
                             {% endif %}

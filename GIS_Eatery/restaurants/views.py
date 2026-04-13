@@ -1,10 +1,8 @@
-import json
 import requests
 from datetime import datetime, timedelta
 
 from django.shortcuts import get_object_or_404, render, redirect
 from django.http import JsonResponse
-from django.core.serializers import serialize
 from django.contrib.gis.geos import Point
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
@@ -34,6 +32,23 @@ from .models import (
 
 BOOKING_SLOT_MINUTES = 30
 ACTIVE_RESERVATION_STATUSES = ['pending', 'confirmed', 'waiting']
+
+
+def get_restaurant_display_image(restaurant):
+    if getattr(restaurant, 'image', None):
+        try:
+            return restaurant.image.url
+        except Exception:
+            pass
+
+    first_gallery = restaurant.gallery_images.first()
+    if first_gallery and first_gallery.image:
+        try:
+            return first_gallery.image.url
+        except Exception:
+            pass
+
+    return '/static/default-restaurant.jpg'
 
 
 def parse_user_datetime(raw_value):
@@ -134,7 +149,7 @@ def index(request):
         is_available=True
     ).order_by('price')
 
-    restaurants = Restaurant.objects.annotate(
+    restaurants = Restaurant.objects.prefetch_related('gallery_images').annotate(
         min_price=Coalesce(
             Subquery(representative_qs.values('price')[:1]),
             Subquery(fallback_qs.values('price')[:1])
@@ -161,6 +176,9 @@ def index(request):
     if sort == 'cheap':
         restaurants = restaurants.order_by('min_price', '-created_at')
 
+    for restaurant in restaurants:
+        restaurant.display_image_url = get_restaurant_display_image(restaurant)
+
     context = {
         'restaurants': restaurants,
         'districts': districts,
@@ -171,8 +189,13 @@ def index(request):
 
 
 def restaurant_detail(request, pk):
-    restaurant = get_object_or_404(Restaurant, pk=pk)
-    feedbacks = restaurant.feedbacks.all()
+    restaurant = get_object_or_404(
+        Restaurant.objects.prefetch_related('gallery_images', 'feedbacks'),
+        pk=pk
+    )
+
+    feedbacks = restaurant.feedbacks.all().order_by('-created_at')
+    gallery_images = restaurant.gallery_images.all()
     total_feedbacks = feedbacks.count()
 
     if total_feedbacks > 0:
@@ -194,6 +217,8 @@ def restaurant_detail(request, pk):
         'total_feedbacks': total_feedbacks,
         'average_rating': round(average_rating, 1),
         'rating_counts': rating_counts,
+        'gallery_images': gallery_images,
+        'main_image_url': get_restaurant_display_image(restaurant),
     }
     return render(request, 'restaurants/detail.html', context)
 
@@ -239,8 +264,9 @@ def user_booking_history(request):
 # PHẦN 3: API ENDPOINTS
 
 def api_get_restaurants(request):
-    restaurants = Restaurant.objects.all()
+    restaurants = Restaurant.objects.prefetch_related('gallery_images').all()
     data = []
+
     for r in restaurants:
         data.append({
             'id': r.id,
@@ -249,8 +275,9 @@ def api_get_restaurants(request):
             'district': r.get_district_display(),
             'latitude': r.location.y,
             'longitude': r.location.x,
-            'image': r.image.url if r.image else '/static/default-restaurant.jpg'
+            'image': get_restaurant_display_image(r)
         })
+
     return JsonResponse(data, safe=False)
 
 
@@ -275,7 +302,7 @@ def api_nearby_restaurants(request):
             is_available=True
         ).order_by('price')
 
-        restaurants = Restaurant.objects.filter(
+        restaurants = Restaurant.objects.prefetch_related('gallery_images').filter(
             location__distance_lte=(user_location, D(km=radius))
         )
 
@@ -305,7 +332,6 @@ def api_nearby_restaurants(request):
 
         data = []
         for r in restaurants:
-            img_url = r.image.url if r.image else "https://placehold.co/600x400?text=No+Image"
             data.append({
                 'id': r.id,
                 'name': r.name,
@@ -314,7 +340,7 @@ def api_nearby_restaurants(request):
                 'distance': round(r.distance.km, 1) if r.distance else None,
                 'min_price': int(r.min_price) if r.min_price else None,
                 'cheapest_dish_name': r.cheapest_dish_name,
-                'image': img_url,
+                'image': get_restaurant_display_image(r),
                 'lat': r.location.y,
                 'lng': r.location.x
             })
@@ -494,10 +520,12 @@ def admin_dashboard(request):
     return render(request, 'restaurants/admin_dashboard.html', context)
 
 
-# --- QUẢN LÝ QUÁN ĂN ---
 @user_passes_test(lambda u: u.is_superuser)
 def admin_restaurant_list(request):
-    restaurants = Restaurant.objects.all().order_by('-created_at')
+    restaurants = Restaurant.objects.prefetch_related('gallery_images').all().order_by('-created_at')
+    for restaurant in restaurants:
+        restaurant.display_image_url = get_restaurant_display_image(restaurant)
+
     context = {
         'restaurants': restaurants,
         'active_page': 'restaurants'
@@ -508,7 +536,7 @@ def admin_restaurant_list(request):
 @user_passes_test(lambda u: u.is_superuser)
 def admin_restaurant_form(request, pk=None):
     if pk:
-        restaurant = get_object_or_404(Restaurant, pk=pk)
+        restaurant = get_object_or_404(Restaurant.objects.prefetch_related('gallery_images'), pk=pk)
         action_title = "CẬP NHẬT QUÁN ĂN"
     else:
         restaurant = None
@@ -585,7 +613,6 @@ def admin_restaurant_delete(request, pk):
     return redirect('admin_restaurant_list')
 
 
-# --- QUẢN LÝ THỰC ĐƠN ---
 @user_passes_test(lambda u: u.is_superuser)
 def admin_menu_list(request, pk):
     restaurant = get_object_or_404(Restaurant, pk=pk)
@@ -660,7 +687,6 @@ def admin_dish_delete(request, dish_id):
     return redirect('admin_menu_list', pk=restaurant_id)
 
 
-# --- QUẢN LÝ ĐẶT BÀN ---
 @user_passes_test(lambda u: u.is_superuser)
 def admin_booking_list(request, pk):
     restaurant = get_object_or_404(Restaurant, pk=pk)
@@ -707,7 +733,6 @@ def admin_update_booking_status(request, booking_id, status):
     return redirect('admin_booking_list', pk=booking.table.restaurant.pk)
 
 
-# --- QUẢN LÝ PHẢN HỒI ---
 def feedback_form(request, pk):
     restaurant = get_object_or_404(Restaurant, pk=pk)
 
@@ -717,7 +742,6 @@ def feedback_form(request, pk):
         rating = request.POST.get('rating')
         message = request.POST.get('message', '').strip()
 
-        # Chặn 1 email chỉ đánh giá 1 lần cho mỗi quán
         if Feedback.objects.filter(restaurant=restaurant, customer_email__iexact=customer_email).exists():
             flash_msg.error(request, "Email này đã đánh giá quán này rồi. Mỗi email chỉ được đánh giá 1 lần.")
             return redirect('feedback_form', pk=pk)
@@ -799,8 +823,6 @@ def admin_mark_feedback_as_read(request, feedback_id):
     flash_msg.success(request, "Đã đánh dấu phản hồi này là đã xem.")
     return redirect('admin_feedback_list', pk=feedback.restaurant.pk)
 
-
-# ===== EMAIL FUNCTIONS =====
 
 def send_feedback_email_to_admin(feedback):
     subject = f"🔔 Phản hồi mới từ {feedback.customer_name} - {feedback.restaurant.name}"

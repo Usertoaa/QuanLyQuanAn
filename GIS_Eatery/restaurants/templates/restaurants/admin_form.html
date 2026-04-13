@@ -11,6 +11,37 @@
         <div class="card shadow">
             <div class="card-body">
                 <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+    <label class="form-label fw-bold">Ảnh đại diện</label>
+    <input type="file" name="image" class="form-control" accept="image/*">
+
+    {% if restaurant and restaurant.image %}
+    <div class="mt-2">
+        <img src="{{ restaurant.image.url }}" alt="{{ restaurant.name }}"
+             style="width: 160px; height: 110px; object-fit: cover; border-radius: 10px; border: 1px solid #ddd;">
+    </div>
+    {% endif %}
+</div>
+
+<div class="mb-3">
+    <label class="form-label fw-bold">Thư viện ảnh</label>
+    <input type="file" name="gallery_images" class="form-control" accept="image/*" multiple>
+    <small class="text-muted">Có thể chọn nhiều ảnh cùng lúc.</small>
+</div>
+
+{% if restaurant %}
+<div class="mb-3">
+    <label class="form-label fw-bold">Ảnh thư viện hiện tại</label>
+    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+        {% for img in restaurant.gallery_images.all %}
+        <img src="{{ img.image.url }}" alt="gallery"
+             style="width: 100px; height: 100px; object-fit: cover; border-radius: 10px; border: 1px solid #ddd;">
+        {% empty %}
+        <span class="text-muted">Chưa có ảnh thư viện.</span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
                     {% csrf_token %}
                     <div class="row">
                         <div class="col-md-6">

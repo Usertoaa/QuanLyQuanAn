@@ -14,11 +14,64 @@
         :root { --primary-color: #cf2127; }
         body { background-color: #f6f6f6; font-family: 'Segoe UI', sans-serif; }
 
-        .hero-image {
+        .gallery-wrap {
+            margin-top: 20px;
+        }
+
+        .hero-image-box {
             width: 100%;
             height: 400px;
-            object-fit: cover;
             border-radius: 0 0 10px 10px;
+            overflow: hidden;
+            background: #f1f1f1;
+        }
+
+        .hero-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .thumbnail-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .thumbnail-row::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .thumbnail-row::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 999px;
+        }
+
+        .thumbnail-item {
+            width: 90px;
+            height: 90px;
+            border-radius: 10px;
+            overflow: hidden;
+            flex-shrink: 0;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+            background: #fff;
+        }
+
+        .thumbnail-item.active {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        .thumbnail-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
         }
 
         .sticky-sidebar {
@@ -61,11 +114,33 @@
     </nav>
 
     <div class="container pb-5">
-        {% if restaurant.image %}
-            <img src="{{ restaurant.image.url }}" class="hero-image shadow-sm">
-        {% else %}
-            <img src="https://placehold.co/1200x400?text=No+Image" class="hero-image shadow-sm">
-        {% endif %}
+        <div class="gallery-wrap">
+            <div class="hero-image-box shadow-sm">
+                <img id="main-gallery-image" src="{{ main_image_url }}" class="hero-image" alt="{{ restaurant.name }}">
+            </div>
+
+            <div class="thumbnail-row">
+                {% if restaurant.image %}
+                <div class="thumbnail-item active" data-image="{{ restaurant.image.url }}" onclick="changeMainImage(this)">
+                    <img src="{{ restaurant.image.url }}" alt="{{ restaurant.name }}">
+                </div>
+                {% endif %}
+
+                {% for img in gallery_images %}
+                <div class="thumbnail-item {% if not restaurant.image and forloop.first %}active{% endif %}"
+                     data-image="{{ img.image.url }}"
+                     onclick="changeMainImage(this)">
+                    <img src="{{ img.image.url }}" alt="{{ restaurant.name }}">
+                </div>
+                {% endfor %}
+
+                {% if not restaurant.image and not gallery_images %}
+                <div class="thumbnail-item active" data-image="{{ main_image_url }}" onclick="changeMainImage(this)">
+                    <img src="{{ main_image_url }}" alt="{{ restaurant.name }}">
+                </div>
+                {% endif %}
+            </div>
+        </div>
 
         <div class="row mt-4">
             <div class="col-lg-8">
@@ -322,6 +397,21 @@
     <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
 
     <script>
+        function changeMainImage(element) {
+            const mainImage = document.getElementById('main-gallery-image');
+            const imageUrl = element.getAttribute('data-image');
+
+            if (imageUrl) {
+                mainImage.src = imageUrl;
+            }
+
+            document.querySelectorAll('.thumbnail-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            element.classList.add('active');
+        }
+
         var restaurantLat = parseFloat("{{ restaurant.location.y|stringformat:'f' }}");
         var restaurantLng = parseFloat("{{ restaurant.location.x|stringformat:'f' }}");
 
