@@ -37,6 +37,8 @@ urlpatterns = [
 
     # Quản lý món ăn
     path('my-admin/restaurant/<int:pk>/menu/', views.admin_menu_list, name='admin_menu_list'),
+    path('my-admin/restaurant/<int:pk>/menu/import/', views.admin_import_dishes, name='admin_import_dishes'),
+    path('my-admin/restaurant/<int:pk>/menu/import/download-template/', views.download_sample_dishes_template, name='download_sample_dishes_template'),
     path('my-admin/restaurant/<int:pk>/menu/add/', views.admin_dish_form, name='admin_dish_add'),
     path('my-admin/menu/edit/<int:dish_id>/', views.admin_dish_edit, name='admin_dish_edit'),
     path('my-admin/menu/delete/<int:dish_id>/', views.admin_dish_delete, name='admin_dish_delete'),

@@ -2,6 +2,9 @@ import requests
 from datetime import datetime, timedelta
 import uuid
 import hashlib
+import os
+from django.http import FileResponse
+from io import BytesIO
 
 from django.shortcuts import get_object_or_404, render, redirect
 from django.http import JsonResponse
@@ -36,7 +39,8 @@ from .models import (
     UserProfile,
     PasswordResetToken,
 )
-from .forms import CustomUserCreationForm, CustomSetPasswordForm
+from .forms import CustomUserCreationForm, CustomSetPasswordForm, DishImportForm
+from .import_dishes_from_excel import DishImportHandler
 
 # ============================================
 # CONSTANTS
@@ -989,6 +993,87 @@ def admin_menu_list(request, pk):
     return render(request, 'restaurants/admin_menu_list.html', {'restaurant': restaurant, 'dishes': dishes})
 
 
+@login_required(login_url='login')
+@user_passes_test(lambda u: u.is_superuser)
+def admin_import_dishes(request, pk):
+    """
+    View để import dữ liệu các món ăn từ file Excel
+    """
+    restaurant = get_object_or_404(Restaurant, pk=pk)
+    
+    context = {
+        'restaurant': restaurant,
+        'form': DishImportForm(),
+    }
+    
+    if request.method == 'POST':
+        form = DishImportForm(request.POST, request.FILES)
+        
+        if form.is_valid():
+            excel_file = request.FILES['excel_file']
+            
+            # Xử lý import
+            handler = DishImportHandler(excel_file, restaurant)
+            result = handler.import_dishes()
+            
+            # Thêm thông báo
+            if result['errors']:
+                for error in result['errors']:
+                    flash_msg.error(request, error)
+            
+            if result['warnings']:
+                for warning in result['warnings']:
+                    flash_msg.warning(request, warning)
+            
+            if result['success_count'] > 0:
+                flash_msg.success(request, result['message'])
+                return redirect('admin_menu_list', pk=pk)
+        else:
+            for error in form.errors.values():
+                flash_msg.error(request, str(error))
+        
+        context['form'] = form
+    
+    return render(request, 'restaurants/admin_import_dishes.html', context)
+
+
+@login_required(login_url='login')
+@user_passes_test(lambda u: u.is_superuser)
+def download_sample_dishes_template(request, pk):
+    """
+    View để tải file Excel mẫu để import dữ liệu các món ăn
+    """
+    from io import BytesIO
+    from django.http import HttpResponse
+    
+    restaurant = get_object_or_404(Restaurant, pk=pk)
+
+    try:
+        # Tạo file Excel trong bộ nhớ
+        from .import_dishes_from_excel import create_sample_excel_template
+        
+        # Tạo BytesIO object để lưu file
+        excel_buffer = BytesIO()
+        
+        # Tạo file Excel
+        create_sample_excel_template(excel_buffer)
+        excel_buffer.seek(0)
+        
+        # Trả file về client
+        response = HttpResponse(
+            excel_buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="Mau_nhap_mon_an_{restaurant.name.replace(" ", "_")}.xlsx"'
+        
+        return response
+    
+    except Exception as e:
+        flash_msg.error(request, f"❌ Lỗi tạo file mẫu: {str(e)}")
+        return redirect('admin_menu_list', pk=pk)
+
+
+@login_required(login_url='login')
 @user_passes_test(lambda u: u.is_superuser)
 def admin_dish_form(request, pk):
     restaurant = get_object_or_404(Restaurant, pk=pk)

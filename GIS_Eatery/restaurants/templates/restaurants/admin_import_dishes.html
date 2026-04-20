@@ -1,0 +1,249 @@
+{% extends 'restaurants/base_admin.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{% url 'admin_menu_list' restaurant.pk %}" class="text-muted text-decoration-none"><i class="fas fa-arrow-left"></i> Quay lại thực đơn</a>
+        <h2 class="mb-0 mt-2">Nhập Dữ Liệu Các Món Ăn: <span class="text-danger">{{ restaurant.name }}</span></h2>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-upload"></i> Tải File Excel</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" id="importForm">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label for="excelFile" class="form-label fw-bold">Chọn File Excel:</label>
+                        <div class="input-group">
+                            <input type="file" class="form-control" id="excelFile" name="excel_file" accept=".xlsx,.xls" required>
+                            <button class="btn btn-outline-secondary" type="button" id="clearFile">Xóa</button>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            ✓ Định dạng: .xlsx hoặc .xls<br>
+                            ✓ Kích thước tối đa: 5MB
+                        </small>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-check"></i> Bắt Đầu Import
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Thông báo lỗi form -->
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger mt-3">
+                    <i class="fas fa-exclamation-circle"></i> {{ form.non_field_errors }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Hướng Dẫn -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Hướng Dẫn</h5>
+            </div>
+            <div class="card-body">
+                <h6>📋 Cấu Trúc File Excel:</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 20%;">Cột</th>
+                                <th style="width: 20%;">Bắt Buộc</th>
+                                <th style="width: 60%;">Mô Tả</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Tên Món</strong></td>
+                                <td><span class="badge bg-danger">Bắt Buộc</span></td>
+                                <td>Tên của món ăn. Không được để trống</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Giá Tiền</strong></td>
+                                <td><span class="badge bg-danger">Bắt Buộc</span></td>
+                                <td>Giá tiền tính bằng VNĐ. Phải là số dương. VD: 50000, 45000</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Mô Tả</strong></td>
+                                <td><span class="badge bg-success">Tùy Chọn</span></td>
+                                <td>Mô tả chi tiết về món ăn. Có thể để trống</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Còn Món</strong></td>
+                                <td><span class="badge bg-success">Tùy Chọn</span></td>
+                                <td>Trạng thái: Có / Không. Mặc định là "Có"</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Dùng Làm Giá Đại Diện</strong></td>
+                                <td><span class="badge bg-success">Tùy Chọn</span></td>
+                                <td>Sử dụng giá này làm giá đại diện: Có / Không. Mặc định là "Không"</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h6 class="mt-4">✍️ Lưu Ý:</h6>
+                <ul>
+                    <li>Hàng đầu tiên phải chứa tên cột (header)</li>
+                    <li>Nếu một món đã tồn tại, dữ liệu sẽ được <strong>cập nhật</strong></li>
+                    <li>Tối đa 1000 dòng dữ liệu trong một file</li>
+                    <li>Các giá trị boolean chấp nhận: 
+                        <br>✓ Có: "Có", "Yes", "Y", "True", "1"
+                        <br>✓ Không: "Không", "No", "N", "False", "0"
+                    </li>
+                </ul>
+
+                <div class="alert alert-info mt-3">
+                    <strong><i class="fas fa-download"></i> Cần File Mẫu?</strong><br>
+                    <a href="{% url 'download_sample_dishes_template' restaurant.pk %}" class="btn btn-sm btn-outline-primary mt-2">
+                        <i class="fas fa-file-excel"></i> Tải File Mẫu
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar - Ví Dụ Dữ Liệu -->
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-table"></i> Ví Dụ Dữ Liệu</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">Dưới đây là ví dụ về cách sắp xếp dữ liệu trong file Excel:</p>
+                
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tên Món</th>
+                                <th>Giá</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><small>Phở Bò</small></td>
+                                <td><small class="text-danger">50,000</small></td>
+                            </tr>
+                            <tr>
+                                <td><small>Gà Rán Giòn</small></td>
+                                <td><small class="text-danger">45,000</small></td>
+                            </tr>
+                            <tr>
+                                <td><small>Cơm Tấm Sườn</small></td>
+                                <td><small class="text-danger">35,000</small></td>
+                            </tr>
+                            <tr>
+                                <td><small>Bánh Mì Thịt</small></td>
+                                <td><small class="text-danger">25,000</small></td>
+                            </tr>
+                            <tr>
+                                <td><small>Nước Chanh</small></td>
+                                <td><small class="text-danger">10,000</small></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="alert alert-warning mt-3 small">
+                    <strong><i class="fas fa-lightbulb"></i> Mẹo:</strong>
+                    <ul class="mb-0 ps-3">
+                        <li>Dùng file mẫu để đảm bảo định dạng đúng</li>
+                        <li>Kiểm tra dữ liệu trước khi upload</li>
+                        <li>Không để trống cột Tên Món hoặc Giá Tiền</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gần Đây -->
+        {% if restaurant.dishes.all.count > 0 %}
+        <div class="card shadow-sm mt-3">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Món Ăn Gần Đây</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for dish in restaurant.dishes.all|slice:":5" %}
+                    <div class="list-group-item">
+                        <small class="d-flex justify-content-between">
+                            <span class="fw-bold">{{ dish.name }}</span>
+                            <span class="text-danger">{{ dish.price|floatformat:0 }}đ</span>
+                        </small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Nút xóa file
+    document.getElementById('clearFile').addEventListener('click', function() {
+        document.getElementById('excelFile').value = '';
+    });
+
+    // Xác nhận trước khi submit
+    document.getElementById('importForm').addEventListener('submit', function(e) {
+        const fileInput = document.getElementById('excelFile');
+        if (!fileInput.value) {
+            e.preventDefault();
+            alert('Vui lòng chọn file Excel!');
+            return;
+        }
+
+        // Kiểm tra định dạng file
+        const fileName = fileInput.value.toLowerCase();
+        if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+            e.preventDefault();
+            alert('Vui lòng chọn file Excel (.xlsx hoặc .xls)');
+            return;
+        }
+
+        // Kiểm tra kích thước file
+        const fileSize = fileInput.files[0].size;
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (fileSize > maxSize) {
+            e.preventDefault();
+            alert('Kích thước file vượt quá 5MB. Vui lòng chọn file nhỏ hơn.');
+            return;
+        }
+
+        // Hiển thị loading
+        const btn = document.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+    });
+});
+</script>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 8px;
+    }
+    
+    .card-header {
+        border-radius: 8px 8px 0 0;
+        padding: 1rem;
+    }
+    
+    .table-responsive {
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}

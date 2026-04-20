@@ -156,9 +156,9 @@
         }
         .btn-detail:hover { background: #a01820; }
         .btn-route {
-            background: #007bff; color: #fff; border: none; border-radius: 4px; padding: 8px 12px; 
-            font-size: 12px; font-weight: 500; text-align: center; text-decoration: none;
-            transition: all 0.2s; cursor: pointer; display: inline-block;
+            background: #007bff; color: #fff; border: none; border-radius: 4px; padding: 6px 10px; 
+            font-size: 12px; font-weight: 500; flex: 1; text-align: center; text-decoration: none;
+            transition: all 0.2s; cursor: pointer;
         }
         .btn-route:hover { background: #0056b3; }
         #status {
@@ -262,31 +262,13 @@
                 <div class="restaurant-info-box">
                     <div class="restaurant-name" id="currentRestaurantName"></div>
                     <div class="restaurant-distance" id="currentRestaurantDistance"></div>
-                    <button id="getCurrentRestaurantDirectionBtn" style="width: 100%; margin-top: 10px; background: #007bff; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px;" onclick="getDirectionsForCurrentRestaurant()">
-                        <i class="fas fa-directions"></i> Chỉ đường
-                    </button>
                 </div>
                 <div class="divider"></div>
             </div>
 
             <!-- Section thay đổi vị trí -->
             <div class="location-section">
-                <h6><i class="fas fa-map-pin"></i> Vị trí hiện tại</h6>
-                <div style="background: #fff; padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 12px;">
-                    <div style="margin-bottom: 6px;">
-                        <strong>Tọa độ:</strong><br>
-                        <span id="currentCoords" style="color: #666;">Đang xác định...</span>
-                    </div>
-                    <div>
-                        <strong>Địa chỉ:</strong><br>
-                        <span id="currentAddress" style="color: #666;">Đang xác định...</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Section thay đổi vị trí -->
-            <div class="location-section">
-                <h6><i class="fas fa-map-pin"></i> Thay đổi vị trí</h6>
+                <h6><i class="fas fa-map-pin"></i> Vị trí của bạn</h6>
                 <div class="location-input-group">
                     <input type="text" id="searchAddress" class="location-input" placeholder="Nhập địa chỉ...">
                     <button class="btn-set-location" onclick="searchAndSetLocation()">
@@ -346,7 +328,6 @@
     var routingControl = null; // Biến lưu đường đi
     var restaurantMarker = null; // Biến lưu marker quán ăn
     var userLat = null, userLng = null;
-    var currentRestaurantLat = null, currentRestaurantLng = null; // 🔥 Lưu tọa độ quán ăn hiện tại
 
     // 2. Lấy vị trí người dùng (GPS trình duyệt)
     map.locate({setView: true, maxZoom: 14});
@@ -354,25 +335,6 @@
     map.on('locationfound', function(e) {
         userLat = e.latlng.lat;
         userLng = e.latlng.lng;
-        
-        // 🔥 Cập nhật hiển thị tọa độ hiện tại
-        document.getElementById('currentCoords').innerHTML = `${userLat.toFixed(6)}, ${userLng.toFixed(6)}`;
-        document.getElementById('currentAddress').innerHTML = `<i class='fas fa-spinner fa-spin'></i> Đang tìm địa chỉ...`;
-        
-        // Reverse geocode để lấy địa chỉ
-        fetch(`/api/reverse-geocode/?lat=${userLat}&lng=${userLng}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.address) {
-                    document.getElementById('currentAddress').innerHTML = data.address;
-                } else {
-                    document.getElementById('currentAddress').innerHTML = 'Không xác định được địa chỉ';
-                }
-            })
-            .catch(err => {
-                document.getElementById('currentAddress').innerHTML = 'Lỗi khi tìm địa chỉ';
-                console.error(err);
-            });
         
         document.getElementById('status').innerHTML = "<i class='fas fa-check-circle' style='color:#28a745;'></i> Đã thấy vị trí của bạn!";
         
@@ -423,10 +385,6 @@
                         <span class="distance-badge">${distance.toFixed(1)} km</span>
                     `;
                     infoBox.style.display = 'block';
-                    
-                    // 🔥 Lưu tọa độ quán ăn hiện tại
-                    currentRestaurantLat = restaurant.lat;
-                    currentRestaurantLng = restaurant.lng;
                     
                     // Cập nhật header
                     document.getElementById('headerTitle').textContent = 'Chỉ đường';
@@ -486,10 +444,6 @@
                     userLat = data.lat;
                     userLng = data.lng;
                     
-                    // 🔥 Cập nhật hiển thị tọa độ
-                    document.getElementById('currentCoords').innerHTML = `${userLat.toFixed(6)}, ${userLng.toFixed(6)}`;
-                    document.getElementById('currentAddress').innerHTML = data.address || address;
-                    
                     // Cập nhật marker người dùng
                     if (userMarker) map.removeLayer(userMarker);
                     userMarker = L.marker([userLat, userLng], {
@@ -503,13 +457,6 @@
                     map.setView([userLat, userLng], 15);
                     document.getElementById('status').innerHTML = `<i class='fas fa-check-circle' style='color:#28a745;'></i> Đã cập nhật vị trí!`;
                     document.getElementById('searchAddress').value = '';
-                    
-                    // 🔥 Xóa routing cũ khi thay đổi vị trí
-                    if (routingControl) {
-                        map.removeControl(routingControl);
-                        routingControl = null;
-                        document.getElementById('stopRoutingBtn').style.display = 'none';
-                    }
                 } else if (data.error) {
                     document.getElementById('status').innerHTML = `<i class='fas fa-exclamation-circle' style='color:#dc3545;'></i> ${data.error}`;
                     alert(data.error);
@@ -542,13 +489,6 @@
         document.getElementById('restaurantCurrentInfo').style.display = 'none';
         document.getElementById('headerTitle').textContent = 'Tìm quanh đây';
         document.getElementById('headerSubtitle').textContent = 'Khám phá các quán ăn gần bạn';
-        
-        // 🔥 Xóa routing cũ khi quét
-        if (routingControl) {
-            map.removeControl(routingControl);
-            routingControl = null;
-            document.getElementById('stopRoutingBtn').style.display = 'none';
-        }
         
         if (searchCircle) map.removeLayer(searchCircle);
         searchCircle = L.circle([userLat, userLng], {
@@ -616,6 +556,7 @@
                 L.latLng(destLat, destLng)
             ],
             routeWhileDragging: false,
+            language: 'vi',
             showAlternatives: false,
             lineOptions: {
                 styles: [{color: 'blue', opacity: 0.6, weight: 5}]
@@ -624,23 +565,6 @@
         }).addTo(map);
         document.getElementById('stopRoutingBtn').style.display = 'block';
         map.closePopup();
-    }
-
-    // 🔥 Hàm CHỈ ĐƯỜNG cho quán ăn hiện tại (sử dụng tọa độ mới)
-    function getDirectionsForCurrentRestaurant() {
-        console.log('getDirectionsForCurrentRestaurant called');
-        console.log('userLat:', userLat, 'userLng:', userLng);
-        console.log('currentRestaurantLat:', currentRestaurantLat, 'currentRestaurantLng:', currentRestaurantLng);
-        
-        if (!userLat || !userLng) {
-            alert("Cần vị trí của bạn để chỉ đường!");
-            return;
-        }
-        if (!currentRestaurantLat || !currentRestaurantLng) {
-            alert("Không có thông tin quán ăn!");
-            return;
-        }
-        getDirections(currentRestaurantLat, currentRestaurantLng);
     }
 
     function stopRouting() {

@@ -25,7 +25,7 @@ class Restaurant(models.Model):
     name = models.CharField(max_length=200, verbose_name="Tên quán")
     address = models.CharField(max_length=300, verbose_name="Địa chỉ")
     district = models.CharField(
-        max_length=5,
+        max_length=10,
         choices=DISTRICT_CHOICES,
         verbose_name="Quận/Huyện"
     )

@@ -6,9 +6,14 @@
         <a href="{% url 'admin_restaurant_list' %}" class="text-muted text-decoration-none"><i class="fas fa-arrow-left"></i> Quay lại</a>
         <h2 class="mb-0 mt-2">Thực đơn: <span class="text-danger">{{ restaurant.name }}</span></h2>
     </div>
-    <a href="{% url 'admin_dish_add' restaurant.pk %}" class="btn btn-success">
-        <i class="fas fa-plus"></i> Thêm Món Mới
-    </a>
+    <div class="btn-group" role="group">
+        <a href="{% url 'admin_import_dishes' restaurant.pk %}" class="btn btn-primary">
+            <i class="fas fa-upload"></i> Nhập Excel
+        </a>
+        <a href="{% url 'admin_dish_add' restaurant.pk %}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Thêm Món Mới
+        </a>
+    </div>
 </div>
 
 <div class="card shadow-sm">
