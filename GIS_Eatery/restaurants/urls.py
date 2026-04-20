@@ -18,6 +18,7 @@ urlpatterns = [
     path('api/book/', views.api_book_table, name='api_book_table'),
     path('api/pickup/', views.api_pickup_order, name='api_pickup_order'),
     path('api/geocode-address/', views.api_geocode_address, name='api_geocode_address'),
+    path('api/reverse-geocode-address/', views.api_reverse_geocode_address, name='api_reverse_geocode_address'),
     
     # Admin URLs
     path('admin/', views.admin_dashboard, name='admin_dashboard'),

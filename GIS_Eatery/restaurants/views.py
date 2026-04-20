@@ -31,10 +31,17 @@ from .models import (
     PickupOrderItem,
 )
 
+# ============================================
+# CONSTANTS
+# ============================================
 BOOKING_SLOT_MINUTES = 30
 ADVANCE_BOOKING_MINUTES = 90  # Không được đặt sớm quá 90 phút
 ACTIVE_RESERVATION_STATUSES = ['pending', 'confirmed', 'waiting']
 
+
+# ============================================
+# UTILITY FUNCTIONS - BOOKING & TIME
+# ============================================
 
 def validate_booking_time(requested_time):
     """
@@ -158,7 +165,9 @@ def find_best_table_for_booking(restaurant, people, requested_time):
     return best_table, best_time
 
 
-# PHẦN 1: PUBLIC USER VIEWS
+# ============================================
+# PUBLIC VIEWS - USER INTERFACE
+# ============================================
 
 def index(request):
     districts = Restaurant.DISTRICT_CHOICES
@@ -286,7 +295,9 @@ def user_booking_history(request):
     return render(request, 'restaurants/user_history.html', {'bookings': my_bookings})
 
 
-# PHẦN 3: API ENDPOINTS
+# ============================================
+# API ENDPOINTS - RESTAURANT & BOOKING DATA
+# ============================================
 
 def api_get_restaurants(request):
     restaurants = Restaurant.objects.prefetch_related('gallery_images').all()
@@ -1168,3 +1179,42 @@ def api_geocode_address(request):
 
     except requests.RequestException as e:
         return JsonResponse({'error': f'Lỗi geocoding: {str(e)}'}, status=500)
+
+
+@csrf_exempt
+@require_GET
+def api_reverse_geocode_address(request):
+    """Chuyển đổi tọa độ (lat, lng) → địa chỉ (reverse geocoding)"""
+    lat = request.GET.get('lat', '').strip()
+    lng = request.GET.get('lng', '').strip()
+
+    if not lat or not lng:
+        return JsonResponse({'error': 'Thiếu tọa độ (lat, lng)'}, status=400)
+
+    try:
+        lat = float(lat)
+        lng = float(lng)
+    except ValueError:
+        return JsonResponse({'error': 'Tọa độ không hợp lệ'}, status=400)
+
+    try:
+        response = requests.get(
+            'https://nominatim.openstreetmap.org/reverse',
+            params={
+                'format': 'jsonv2',
+                'lat': lat,
+                'lon': lng,
+                'accept-language': 'vi',
+                'addressdetails': 1,
+                'zoom': 18
+            },
+            headers={
+                'User-Agent': 'GIS_Eatery/1.0'
+            },
+            timeout=10
+        )
+        response.raise_for_status()
+        return JsonResponse(response.json())
+
+    except requests.RequestException as e:
+        return JsonResponse({'error': f'Lỗi reverse geocoding: {str(e)}'}, status=500)
