@@ -1,4 +1,44 @@
 {% extends 'restaurants/base.html' %} {% block content %}
+<style>
+    /* Password Input Wrapper Styling */
+    .password-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    
+    .password-input-wrapper input {
+        flex: 1;
+        padding-right: 40px;
+    }
+    
+    .btn-password-toggle {
+        position: absolute;
+        right: 10px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #666;
+        font-size: 16px;
+        padding: 8px;
+        transition: all 0.2s;
+        z-index: 10;
+    }
+    
+    .btn-password-toggle:hover {
+        color: #007bff;
+        transform: scale(1.1);
+    }
+    
+    .btn-password-toggle:focus {
+        outline: none;
+    }
+    
+    .btn-password-toggle.active {
+        color: #28a745;
+    }
+</style>
+
 <div class="container py-5" style="background-color: #f6f6f6;">
     <div class="row justify-content-center">
         <div class="col-md-5 col-lg-4">
@@ -14,7 +54,7 @@
                         {% for field in form %}
                         <div class="mb-3">
                             <label class="fw-bold small text-secondary">{{ field.label }}</label>
-                            {{ field }}
+                            {{ field|safe }}
                             {% if field.help_text %}
                                 <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">{{ field.help_text|safe }}</small>
                             {% endif %}
@@ -38,7 +78,48 @@
 </div>
 
 <script>
-    var inputs = document.querySelectorAll('input');
-    inputs.forEach(input => input.classList.add('form-control'));
+    // Toggle password visibility
+    document.addEventListener('DOMContentLoaded', function() {
+        // Tìm tất cả các nút toggle mật khẩu
+        const toggleBtns = document.querySelectorAll('.btn-password-toggle');
+        
+        toggleBtns.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Tìm input password gần nhất
+                const passwordInput = this.previousElementSibling;
+                
+                if (passwordInput && passwordInput.tagName === 'INPUT') {
+                    const isPassword = passwordInput.type === 'password';
+                    
+                    // Thay đổi type
+                    passwordInput.type = isPassword ? 'text' : 'password';
+                    
+                    // Thay đổi icon
+                    const icon = this.querySelector('i');
+                    if (isPassword) {
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                        this.classList.add('active');
+                        this.title = 'Ẩn mật khẩu';
+                    } else {
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                        this.classList.remove('active');
+                        this.title = 'Hiển thị mật khẩu';
+                    }
+                }
+            });
+        });
+        
+        // Thêm form-control class vào các input khác
+        var inputs = document.querySelectorAll('input:not(.password-input)');
+        inputs.forEach(input => {
+            if (!input.classList.contains('form-control')) {
+                input.classList.add('form-control');
+            }
+        });
+    });
 </script>
 {% endblock %}

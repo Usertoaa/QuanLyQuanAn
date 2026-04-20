@@ -19,6 +19,7 @@ urlpatterns = [
     path('api/pickup/', views.api_pickup_order, name='api_pickup_order'),
     path('api/geocode-address/', views.api_geocode_address, name='api_geocode_address'),
     path('api/reverse-geocode-address/', views.api_reverse_geocode_address, name='api_reverse_geocode_address'),
+    path('api/resend-verification-email/', views.api_resend_verification_email, name='api_resend_verification_email'),
     
     # Admin URLs
     path('admin/', views.admin_dashboard, name='admin_dashboard'),
@@ -57,6 +58,7 @@ urlpatterns = [
     # Email verification & Password reset
     path('verify-email/<str:token>/', views.verify_email, name='verify_email'),
     path('verification-pending/', views.verification_pending, name='verification_pending'),
+    path('verification-success/', views.verification_success, name='verification_success'),
     path('forgot-password/', views.forgot_password, name='forgot_password'),
     path('reset-password/<str:token>/', views.reset_password, name='reset_password'),
 ]

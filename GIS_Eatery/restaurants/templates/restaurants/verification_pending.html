@@ -1,0 +1,353 @@
+{% extends 'restaurants/base.html' %} {% block content %}
+<style>
+    .verification-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .verification-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        padding: 40px;
+        max-width: 500px;
+        text-align: center;
+        animation: slideIn 0.5s ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .verification-icon {
+        font-size: 64px;
+        margin-bottom: 20px;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            color: #667eea;
+        }
+        50% {
+            transform: scale(1.1);
+            color: #764ba2;
+        }
+    }
+
+    .verification-card h2 {
+        color: #333;
+        font-size: 28px;
+        margin-bottom: 10px;
+        font-weight: bold;
+    }
+
+    .verification-card .subtitle {
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 30px;
+        line-height: 1.6;
+    }
+
+    .email-box {
+        background: #f5f7fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+        border-left: 4px solid #667eea;
+    }
+
+    .email-box p {
+        margin: 0;
+        color: #333;
+        font-weight: 500;
+        word-break: break-all;
+    }
+
+    .email-box .label {
+        color: #999;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 5px;
+    }
+
+    .verification-steps {
+        text-align: left;
+        margin: 30px 0;
+        padding: 20px;
+        background: #f9f9f9;
+        border-radius: 8px;
+    }
+
+    .verification-steps h4 {
+        color: #333;
+        margin-bottom: 15px;
+        font-size: 16px;
+    }
+
+    .verification-steps ol {
+        margin: 0;
+        padding-left: 20px;
+    }
+
+    .verification-steps li {
+        color: #666;
+        margin-bottom: 10px;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .verification-steps strong {
+        color: #333;
+    }
+
+    .alert-box {
+        background: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        color: #1565c0;
+    }
+
+    .alert-box i {
+        margin-right: 8px;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .btn-resend {
+        flex: 1;
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 14px;
+    }
+
+    .btn-resend:hover {
+        background: #5568d3;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-resend:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .btn-back {
+        flex: 1;
+        background: #f0f0f0;
+        color: #333;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 14px;
+        text-decoration: none;
+    }
+
+    .btn-back:hover {
+        background: #e0e0e0;
+        transform: translateY(-2px);
+    }
+
+    .timer {
+        color: #667eea;
+        font-weight: bold;
+        font-size: 12px;
+        margin-top: 10px;
+    }
+
+    .check-spam {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 12px;
+        border-radius: 4px;
+        margin-top: 15px;
+        font-size: 13px;
+        color: #856404;
+    }
+
+    .check-spam i {
+        margin-right: 6px;
+    }
+
+    @media (max-width: 600px) {
+        .verification-card {
+            margin: 20px;
+            padding: 20px;
+        }
+
+        .verification-card h2 {
+            font-size: 22px;
+        }
+
+        .verification-icon {
+            font-size: 48px;
+        }
+
+        .button-group {
+            flex-direction: column;
+        }
+    }
+</style>
+
+<div class="verification-container">
+    <div class="verification-card">
+        <div class="verification-icon">
+            <i class="fas fa-envelope-open-text"></i>
+        </div>
+
+        <h2>Xác Thực Email</h2>
+        <p class="subtitle">Vui lòng kiểm tra email của bạn để xác thực tài khoản</p>
+
+        <div class="email-box">
+            <div class="label">📧 Email Đã Gửi Tới:</div>
+            <p id="userEmail">{{ user.email }}</p>
+        </div>
+
+        <div class="alert-box">
+            <i class="fas fa-info-circle"></i>
+            <strong>Thông tin quan trọng:</strong> Email xác thực sẽ hết hạn trong 24 giờ
+        </div>
+
+        <div class="verification-steps">
+            <h4><i class="fas fa-tasks"></i> Các bước xác thực:</h4>
+            <ol>
+                <li>Mở ứng dụng email của bạn (<strong>Gmail, Outlook, v.v...</strong>)</li>
+                <li>Tìm email từ <strong>BT Food</strong> hoặc <strong>admin@btfood.com</strong></li>
+                <li>Click vào link <strong>"Xác Thực Email"</strong> trong email</li>
+                <li>Tài khoản của bạn sẽ được <strong>kích hoạt tự động</strong></li>
+                <li>Bạn có thể <strong>đăng nhập ngay</strong></li>
+            </ol>
+        </div>
+
+        <div class="check-spam">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Không tìm thấy email?</strong> Kiểm tra thư mục <strong>Spam</strong> hoặc <strong>Promotions</strong>
+        </div>
+
+        <div class="button-group">
+            <button type="button" class="btn-resend" onclick="resendVerificationEmail()">
+                <i class="fas fa-redo"></i> Gửi Lại Email
+            </button>
+            <a href="{% url 'index' %}" class="btn-back">
+                <i class="fas fa-home"></i> Trang Chủ
+            </a>
+        </div>
+
+        <div class="timer">
+            <i class="fas fa-clock"></i> Thời gian còn lại: <span id="countdown">24:00:00</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Countdown timer
+    document.addEventListener('DOMContentLoaded', function() {
+        const endTime = new Date().getTime() + 24 * 60 * 60 * 1000; // 24 hours from now
+
+        function updateTimer() {
+            const now = new Date().getTime();
+            const timeLeft = endTime - now;
+
+            if (timeLeft <= 0) {
+                document.getElementById('countdown').textContent = 'Hết hạn';
+                document.querySelector('.btn-resend').disabled = true;
+                document.querySelector('.timer').style.color = '#dc3545';
+                return;
+            }
+
+            const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+            const timeString = 
+                String(hours).padStart(2, '0') + ':' +
+                String(minutes).padStart(2, '0') + ':' +
+                String(seconds).padStart(2, '0');
+
+            document.getElementById('countdown').textContent = timeString;
+        }
+
+        // Update every second
+        updateTimer();
+        setInterval(updateTimer, 1000);
+    });
+
+    // Resend verification email
+    let resendTimeout = 0;
+    function resendVerificationEmail() {
+        const btn = document.querySelector('.btn-resend');
+        
+        if (resendTimeout > 0) {
+            alert('⏱️ Vui lòng chờ ' + resendTimeout + ' giây trước khi gửi lại email');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = '<i class="fas fa-spinner fa-spin"></i> Đang gửi...';
+
+        fetch('/api/resend-verification-email/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ Email xác thực đã được gửi lại!\nVui lòng kiểm tra email của bạn.');
+                btn.textContent = '<i class="fas fa-redo"></i> Gửi Lại Email';
+                
+                // Cooldown 60 seconds
+                resendTimeout = 60;
+                const countdown = setInterval(() => {
+                    resendTimeout--;
+                    if (resendTimeout <= 0) {
+                        clearInterval(countdown);
+                        btn.disabled = false;
+                    }
+                }, 1000);
+            } else {
+                alert('❌ ' + (data.error || 'Có lỗi xảy ra'));
+                btn.disabled = false;
+                btn.textContent = '<i class="fas fa-redo"></i> Gửi Lại Email';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ Lỗi kết nối. Vui lòng thử lại!');
+            btn.disabled = false;
+            btn.textContent = '<i class="fas fa-redo"></i> Gửi Lại Email';
+        });
+    }
+</script>
+{% endblock %}

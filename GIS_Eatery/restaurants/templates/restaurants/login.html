@@ -1,4 +1,46 @@
-{% extends 'restaurants/base.html' %} {% block content %} 
+{% extends 'restaurants/base.html' %} {% block content %}
+<style>
+    /* Password Input Wrapper Styling */
+    .password-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    
+    .password-input-wrapper input {
+        flex: 1;
+        padding-right: 40px !important;
+    }
+    
+    .btn-password-toggle {
+        position: absolute;
+        right: 12px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #666;
+        font-size: 16px;
+        padding: 6px;
+        transition: all 0.2s;
+        z-index: 10;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    
+    .btn-password-toggle:hover {
+        color: #dc3545;
+        transform: translateY(-50%) scale(1.1);
+    }
+    
+    .btn-password-toggle:focus {
+        outline: none;
+    }
+    
+    .btn-password-toggle.active {
+        color: #28a745;
+    }
+</style>
+
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-5">
@@ -20,17 +62,55 @@
                         </div>
                         <div class="mb-3">
                             <label class="fw-bold small">Mật khẩu:</label>
-                            <input type="password" name="password" class="form-control" required>
+                            <div class="password-input-wrapper">
+                                <input type="password" name="password" class="form-control" required id="passwordInput">
+                                <button type="button" class="btn-password-toggle" id="passwordToggle" title="Hiển thị/ẩn mật khẩu">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <button type="submit" class="btn btn-danger w-100 fw-bold">ĐĂNG NHẬP</button>
                     </form>
                 </div>
                 <div class="card-footer text-center bg-white">
-                    <small>Chưa có tài khoản? <a href="{% url 'register' %}" class="text-danger fw-bold">Đăng ký ngay</a></small>
+                    <small>Chưa có tài khoản? <a href="{% url 'register' %}" class="text-danger fw-bold">Đăng ký ngay</a></small><br>
+                    <small><a href="{% url 'forgot_password' %}" class="text-secondary text-decoration-none">Quên mật khẩu?</a></small>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const passwordInput = document.getElementById('passwordInput');
+        const passwordToggle = document.getElementById('passwordToggle');
+        
+        if (passwordToggle && passwordInput) {
+            passwordToggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                const isPassword = passwordInput.type === 'password';
+                
+                // Thay đổi type
+                passwordInput.type = isPassword ? 'text' : 'password';
+                
+                // Thay đổi icon
+                const icon = this.querySelector('i');
+                if (isPassword) {
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                    this.classList.add('active');
+                    this.title = 'Ẩn mật khẩu';
+                } else {
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                    this.classList.remove('active');
+                    this.title = 'Hiển thị mật khẩu';
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}

@@ -1,0 +1,300 @@
+{% extends 'restaurants/base.html' %} {% block content %}
+<style>
+    .success-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+    }
+
+    .success-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        padding: 40px;
+        max-width: 500px;
+        text-align: center;
+        animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes popIn {
+        0% {
+            opacity: 0;
+            transform: scale(0.8) rotateX(-20deg);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1) rotateX(0);
+        }
+    }
+
+    .success-icon {
+        font-size: 80px;
+        margin-bottom: 20px;
+        animation: checkBounce 0.6s ease-out;
+        color: #28a745;
+    }
+
+    @keyframes checkBounce {
+        0% {
+            transform: scale(0) rotate(-45deg);
+        }
+        50% {
+            transform: scale(1.2);
+        }
+        100% {
+            transform: scale(1) rotate(0);
+        }
+    }
+
+    .success-card h2 {
+        color: #333;
+        font-size: 32px;
+        margin-bottom: 15px;
+        font-weight: bold;
+    }
+
+    .success-card .subtitle {
+        color: #28a745;
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+
+    .success-card .message {
+        color: #666;
+        font-size: 15px;
+        margin-bottom: 30px;
+        line-height: 1.8;
+    }
+
+    .success-details {
+        background: #f0f7f0;
+        border-left: 4px solid #28a745;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+        text-align: left;
+    }
+
+    .success-details h4 {
+        color: #28a745;
+        margin-bottom: 15px;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .success-details ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .success-details li {
+        color: #333;
+        padding: 8px 0;
+        font-size: 14px;
+        border-bottom: 1px solid rgba(40, 167, 69, 0.1);
+    }
+
+    .success-details li:last-child {
+        border-bottom: none;
+    }
+
+    .success-details li i {
+        color: #28a745;
+        margin-right: 10px;
+        font-weight: bold;
+    }
+
+    .success-details li strong {
+        color: #333;
+    }
+
+    .alert-info {
+        background: #d1ecf1;
+        border-left: 4px solid #0c5460;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        color: #0c5460;
+    }
+
+    .alert-info i {
+        margin-right: 8px;
+    }
+
+    .next-steps {
+        background: #fff3cd;
+        border-left: 4px solid #856404;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 25px;
+        font-size: 14px;
+        color: #856404;
+    }
+
+    .next-steps strong {
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .btn-login {
+        flex: 1;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 14px 20px;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 15px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-login:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-login i {
+        margin-right: 8px;
+    }
+
+    .btn-home {
+        flex: 1;
+        background: #f0f0f0;
+        color: #333;
+        border: none;
+        padding: 14px 20px;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 15px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-home:hover {
+        background: #e0e0e0;
+        transform: translateY(-3px);
+    }
+
+    .btn-home i {
+        margin-right: 8px;
+    }
+
+    .celebration {
+        font-size: 24px;
+        margin: 10px 0;
+        letter-spacing: 5px;
+        animation: bounce 1s infinite;
+    }
+
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+
+    @media (max-width: 600px) {
+        .success-card {
+            margin: 20px;
+            padding: 25px;
+        }
+
+        .success-card h2 {
+            font-size: 24px;
+        }
+
+        .success-icon {
+            font-size: 60px;
+        }
+
+        .button-group {
+            flex-direction: column;
+        }
+
+        .celebration {
+            font-size: 18px;
+        }
+    }
+</style>
+
+<div class="success-container">
+    <div class="success-card">
+        <div class="success-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+
+        <h2>Xác Thực Thành Công!</h2>
+        <p class="subtitle">✓ Email của bạn đã được xác thực</p>
+
+        <p class="message">
+            Tài khoản của bạn đã được kích hoạt thành công.<br>
+            Bây giờ bạn có thể đăng nhập để khám phá ứng dụng!
+        </p>
+
+        <div class="celebration">
+            🎉 🎊 🎉
+        </div>
+
+        <div class="success-details">
+            <h4><i class="fas fa-tasks"></i> Thông tin tài khoản</h4>
+            <ul>
+                <li><i class="fas fa-check"></i> <strong>Email:</strong> Đã xác thực</li>
+                <li><i class="fas fa-check"></i> <strong>Tài khoản:</strong> Đã kích hoạt</li>
+                <li><i class="fas fa-check"></i> <strong>Trạng thái:</strong> Sẵn sàng sử dụng</li>
+            </ul>
+        </div>
+
+        <div class="alert-info">
+            <i class="fas fa-info-circle"></i>
+            <strong>Mẹo:</strong> Vui lòng giữ mật khẩu của bạn an toàn. Không chia sẻ với bất kỳ ai!
+        </div>
+
+        <div class="next-steps">
+            <strong><i class="fas fa-arrow-right"></i> Bước tiếp theo:</strong>
+            1. Nhấp nút "Đăng Nhập" dưới đây<br>
+            2. Nhập tên đăng nhập & mật khẩu<br>
+            3. Bắt đầu khám phá ứng dụng!
+        </div>
+
+        <div class="button-group">
+            <a href="{% url 'login' %}" class="btn-login">
+                <i class="fas fa-sign-in-alt"></i> Đăng Nhập Ngay
+            </a>
+            <a href="{% url 'index' %}" class="btn-home">
+                <i class="fas fa-home"></i> Trang Chủ
+            </a>
+        </div>
+
+        <p style="color: #999; font-size: 12px; margin-top: 20px;">
+            <i class="fas fa-lock"></i> Tài khoản của bạn được bảo vệ với mã hóa SSL 256-bit
+        </p>
+    </div>
+</div>
+
+<script>
+    // Auto redirect after 5 seconds (optional)
+    // setTimeout(() => {
+    //     window.location.href = "{% url 'login' %}";
+    // }, 5000);
+</script>
+{% endblock %}

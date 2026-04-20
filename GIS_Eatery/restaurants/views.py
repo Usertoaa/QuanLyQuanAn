@@ -402,11 +402,18 @@ def verify_email(request, token):
         profile.save()
         
         flash_msg.success(request, '✅ Email xác thực thành công! Bạn có thể đăng nhập ngay.')
-        return redirect('login')
+        return redirect('verification_success')
     
     except UserProfile.DoesNotExist:
         flash_msg.error(request, 'Token xác thực không hợp lệ.')
         return redirect('register')
+
+
+def verification_success(request):
+    """
+    Trang xác thực email thành công
+    """
+    return render(request, 'restaurants/verification_success.html')
 
 
 def verification_pending(request):
@@ -414,6 +421,36 @@ def verification_pending(request):
     Trang chờ xác thực email
     """
     return render(request, 'restaurants/verification_pending.html')
+
+
+@csrf_exempt
+def api_resend_verification_email(request):
+    """
+    API để gửi lại email xác thực (POST)
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Chỉ hỗ trợ POST'}, status=405)
+    
+    if not request.user.is_authenticated:
+        return JsonResponse({'success': False, 'error': 'Bạn chưa đăng nhập'}, status=401)
+    
+    try:
+        user = request.user
+        
+        # Kiểm tra nếu email đã xác thực
+        profile = UserProfile.objects.get(user=user)
+        if profile.email_verified:
+            return JsonResponse({'success': False, 'error': 'Email của bạn đã được xác thực'})
+        
+        # Gửi lại email xác thực
+        send_verification_email(request, user)
+        
+        return JsonResponse({'success': True, 'message': 'Email xác thực đã được gửi lại'})
+    
+    except UserProfile.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Không tìm thấy profile người dùng'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': f'Lỗi: {str(e)}'}, status=500)
 
 
 def forgot_password(request):
@@ -508,7 +545,7 @@ def reset_password(request, token):
         user = token_obj.user
         
         if request.method == 'POST':
-            form = CustomSetPasswordForm(request.POST)
+            form = CustomSetPasswordForm(user, request.POST)
             if form.is_valid():
                 new_password = form.cleaned_data['new_password1']
                 user.set_password(new_password)
@@ -521,7 +558,7 @@ def reset_password(request, token):
                 flash_msg.success(request, '✅ Mật khẩu đã được reset thành công. Hãy đăng nhập!')
                 return redirect('login')
         else:
-            form = CustomSetPasswordForm()
+            form = CustomSetPasswordForm(user)
         
         return render(request, 'restaurants/reset_password.html', {'form': form, 'token': token})
     
