@@ -435,16 +435,15 @@
                     <h6 class="fw-bold"><i class="fas fa-map text-primary"></i> Vị trí quán</h6>
                     <div id="mini-map" style="height: 250px; width: 100%; border-radius: 5px; border:1px solid #ddd;"></div>
 
-                    <button class="btn btn-primary w-100 mt-2 fw-bold" onclick="routeToRestaurant()">
+                    <a href="{% url 'user_map' %}?restaurant_id={{ restaurant.id }}" class="btn btn-primary w-100 mt-2 fw-bold">
                         <i class="fas fa-directions"></i> CHỈ ĐƯỜNG ĐẾN ĐÂY
-                    </button>
+                    </a>
                     <a href="{% url 'map_detail' restaurant.id %}" class="btn btn-info w-100 mt-2 fw-bold">
                         <i class="fas fa-expand"></i> PHÓNG TO BẢN ĐỒ
                     </a>
                     <a href="{% url 'feedback_form' restaurant.id %}" class="btn btn-warning w-100 mt-2 fw-bold">
                         <i class="fas fa-comments"></i> GỬI PHẢN HỒI
                     </a>
-                    <div id="route-status" class="text-center mt-1 small text-muted"></div>
                 </div>
             </div>
         </div>
@@ -484,47 +483,6 @@
             .bindPopup("<b>{{ restaurant.name }}</b>").openPopup();
 
         var routingControl = null;
-
-        function routeToRestaurant() {
-            var statusDiv = document.getElementById('route-status');
-            statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lấy vị trí...';
-
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(function(position) {
-                    var userLat = position.coords.latitude;
-                    var userLng = position.coords.longitude;
-
-                    statusDiv.innerHTML = 'Đang vẽ đường...';
-
-                    if (routingControl) map.removeControl(routingControl);
-
-                    routingControl = L.Routing.control({
-                        waypoints: [
-                            L.latLng(userLat, userLng),
-                            L.latLng(restaurantLat, restaurantLng)
-                        ],
-                        createMarker: function(i, wp) {
-                            if (i === 0) {
-                                return L.marker(wp.latLng).bindPopup("Vị trí của bạn");
-                            }
-                            return null;
-                        },
-                        lineOptions: { styles: [{color: 'blue', opacity: 0.7, weight: 5}] },
-                        show: false
-                    }).addTo(map);
-
-                    var bounds = L.latLngBounds([[userLat, userLng], [restaurantLat, restaurantLng]]);
-                    map.fitBounds(bounds, {padding: [50, 50]});
-
-                    statusDiv.innerHTML = 'Đã tìm thấy đường đi!';
-                }, function() {
-                    statusDiv.innerHTML = '';
-                    alert("Không thể lấy vị trí GPS.");
-                });
-            } else {
-                alert("Trình duyệt không hỗ trợ GPS.");
-            }
-        }
 
         document.addEventListener('DOMContentLoaded', function () {
             const bookingForm = document.getElementById('booking-form');

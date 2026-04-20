@@ -18,45 +18,115 @@
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Arial, sans-serif; background: #f6f6f6; }
         #map { height: 100%; width: 100%; }
         .control-panel {
-            position: absolute; top: 20px; right: 20px; z-index: 1000;
-            background: #fff; padding: 18px 16px 12px 16px; border-radius: 14px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.13); width: 320px;
+            position: absolute; top: 20px; left: 20px; z-index: 1000;
+            background: #fff; padding: 0; border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15); width: 340px;
             max-height: 90vh; overflow-y: auto;
         }
-        .control-panel h4 { margin-top: 0; color: #cf2127; font-size: 20px; font-weight: bold; }
+        .control-panel-header {
+            background: linear-gradient(135deg, #cf2127 0%, #a01820 100%);
+            color: white;
+            padding: 16px;
+            border-radius: 12px 12px 0 0;
+            margin-bottom: 0;
+        }
+        .control-panel-header h4 {
+            margin: 0 0 8px 0;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .control-panel-header .subtitle {
+            font-size: 13px;
+            opacity: 0.9;
+            margin: 0;
+        }
+        .control-panel-body {
+            padding: 16px;
+        }
+        .restaurant-info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #cf2127;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+        .restaurant-info-box .restaurant-name {
+            font-weight: bold;
+            color: #cf2127;
+            font-size: 15px;
+            margin-bottom: 6px;
+        }
+        .restaurant-info-box .restaurant-distance {
+            font-size: 13px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .restaurant-info-box .distance-badge {
+            background: #28a745;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .control-panel h5 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .form-control {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #cf2127;
+            box-shadow: 0 0 4px rgba(207, 33, 39, 0.2);
+        }
         .btn-scan {
-            width: 100%; background: #cf2127; color: white; border: none;
-            padding: 11px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; font-size: 15px;
-            transition: background 0.2s;
+            width: 100%; background: linear-gradient(135deg, #cf2127 0%, #a01820 100%); color: white; 
+            border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; 
+            margin: 12px 0; font-size: 14px; transition: all 0.3s;
         }
-        .btn-scan:hover { background: #b01b20; }
+        .btn-scan:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(207, 33, 39, 0.3); }
+        .btn-scan:active { transform: translateY(0); }
+        .small-text { font-size: 12px; color: #999; margin-bottom: 12px; display: block; }
         .popup-img { width: 100%; height: 110px; object-fit: cover; border-radius: 6px; margin-bottom: 5px; }
-        .btn-route {
-            background: #28a745; color: white; border: none; padding: 6px 12px;
-            border-radius: 4px; cursor: pointer; width: 100%; margin-top: 5px; font-size: 14px;
-        }
         #resultsList {
             max-height: 260px;
             overflow-y: auto;
-            margin-top: 10px;
-            margin-bottom: 0;
+            margin: 12px 0;
         }
         .result-item {
             background: #fff;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.07);
             margin-bottom: 10px;
-            padding: 10px 10px 10px 10px;
+            padding: 10px;
             display: flex;
             gap: 10px;
             align-items: flex-start;
-            transition: box-shadow 0.2s, border 0.2s;
+            transition: all 0.2s;
             border-left: 4px solid #cf2127;
             cursor: pointer;
         }
         .result-item:hover {
-            box-shadow: 0 4px 16px rgba(207,33,39,0.13);
+            box-shadow: 0 4px 16px rgba(207,33,39,0.15);
             border-left: 4px solid #28a745;
+            transform: translateX(2px);
         }
         .result-thumb {
             width: 60px; height: 60px; border-radius: 6px; object-fit: cover; background: #eee;
@@ -66,50 +136,197 @@
             flex: 1;
         }
         .result-title {
-            font-size: 15px; font-weight: bold; color: #cf2127; margin-bottom: 2px;
+            font-size: 14px; font-weight: bold; color: #333; margin-bottom: 4px;
         }
         .result-address {
-            font-size: 13px; color: #666; margin-bottom: 4px;
+            font-size: 12px; color: #666; margin-bottom: 6px;
         }
         .result-distance {
-            display: inline-block; background: #28a745; color: #fff; font-size: 12px;
-            border-radius: 10px; padding: 2px 8px; margin-bottom: 4px;
+            display: inline-block; background: #28a745; color: #fff; font-size: 11px;
+            border-radius: 10px; padding: 3px 8px; margin-bottom: 6px;
+            font-weight: bold;
         }
         .result-actions {
-            display: flex; gap: 6px; margin-top: 6px;
+            display: flex; gap: 6px; margin-top: 8px;
         }
         .btn-detail {
-            background: #cf2127; color: #fff; border: none; border-radius: 4px; padding: 5px 10px; font-size: 13px; font-weight: 500; flex: 1; text-align: center; text-decoration: none;
-            transition: background 0.2s;
+            background: #cf2127; color: #fff; border: none; border-radius: 4px; padding: 6px 10px; 
+            font-size: 12px; font-weight: 500; flex: 1; text-align: center; text-decoration: none;
+            transition: all 0.2s; cursor: pointer;
         }
-        .btn-detail:hover { background: #a61820; }
+        .btn-detail:hover { background: #a01820; }
         .btn-route {
-            background: #007bff; color: #fff; border: none; border-radius: 4px; padding: 5px 10px; font-size: 13px; font-weight: 500; flex: 1; text-align: center; text-decoration: none;
-            transition: background 0.2s;
+            background: #007bff; color: #fff; border: none; border-radius: 4px; padding: 8px 12px; 
+            font-size: 12px; font-weight: 500; text-align: center; text-decoration: none;
+            transition: all 0.2s; cursor: pointer; display: inline-block;
         }
         .btn-route:hover { background: #0056b3; }
+        #status {
+            padding: 10px 0;
+            font-size: 13px;
+            color: #666;
+            text-align: center;
+            margin: 8px 0;
+        }
+        #stopRoutingBtn {
+            width: 100%; background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: #333; 
+            border: none; padding: 10px; border-radius: 6px; margin: 12px 0 0 0; font-weight: bold;
+            font-size: 13px; cursor: pointer; transition: all 0.2s;
+        }
+        #stopRoutingBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+        }
+        .btn-back {
+            display: block; text-align: center; margin-top: 12px; text-decoration: none;
+            color: #666; font-size: 13px; transition: all 0.2s;
+        }
+        .btn-back:hover { color: #cf2127; font-weight: bold; }
+        .divider {
+            height: 1px; background: #eee; margin: 12px 0;
+        }
+        .location-section {
+            background: #f0f7ff;
+            border-left: 4px solid #007bff;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+        .location-section h6 {
+            margin: 0 0 8px 0;
+            color: #007bff;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .location-input-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .location-input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .location-input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 4px rgba(0, 123, 255, 0.2);
+        }
+        .btn-set-location {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .btn-set-location:hover {
+            background: #0056b3;
+            transform: translateY(-1px);
+        }
+        .btn-use-gps {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.2s;
+            width: 100%;
+            margin-top: 6px;
+        }
+        .btn-use-gps:hover {
+            background: #5a6268;
+        }
     </style>
 </head>
 <body>
 
     <div class="control-panel">
-        <h4><i class="fas fa-radar"></i> Tìm quanh đây</h4>
+        <div class="control-panel-header">
+            <h4><i class="fas fa-map-marked-alt"></i> <span id="headerTitle">Tìm quanh đây</span></h4>
+            <p class="subtitle" id="headerSubtitle">Khám phá các quán ăn gần bạn</p>
+        </div>
         
-        <label>Bán kính (km):</label>
-        <input type="number" id="radius" class="form-control" value="2" min="1" max="50" style="width: 100%; padding: 5px; margin-bottom: 5px;">
-        <small class="text-muted">Nhập số km muốn quét</small>
+        <div class="control-panel-body">
+            <!-- Thông tin quán ăn hiện tại (hiển thị khi được chuyển từ detail) -->
+            <div id="restaurantCurrentInfo" style="display: none;">
+                <div class="restaurant-info-box">
+                    <div class="restaurant-name" id="currentRestaurantName"></div>
+                    <div class="restaurant-distance" id="currentRestaurantDistance"></div>
+                    <button id="getCurrentRestaurantDirectionBtn" style="width: 100%; margin-top: 10px; background: #007bff; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px;" onclick="getDirectionsForCurrentRestaurant()">
+                        <i class="fas fa-directions"></i> Chỉ đường
+                    </button>
+                </div>
+                <div class="divider"></div>
+            </div>
 
-        <button class="btn-scan" onclick="scanNearby()">
-            <i class="fas fa-search-location"></i> QUÉT QUÁN ĂN
-        </button>
-        
-        <hr>
-        <div id="status">Đang đợi vị trí...</div>
-        <button id="stopRoutingBtn" onclick="stopRouting()" style="display:none; width:100%; background:#ffc107; color:#333; border:none; padding:8px; border-radius:5px; margin:8px 0 0 0; font-weight:bold;">
-            <i class="fas fa-times"></i> Dừng chỉ đường
-        </button>
-        <div id="resultsList"></div>
-        <a href="{% url 'index' %}" style="display:block; text-align:center; margin-top:10px; text-decoration:none;">Quay lại Trang chủ</a>
+            <!-- Section thay đổi vị trí -->
+            <div class="location-section">
+                <h6><i class="fas fa-map-pin"></i> Vị trí hiện tại</h6>
+                <div style="background: #fff; padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 12px;">
+                    <div style="margin-bottom: 6px;">
+                        <strong>Tọa độ:</strong><br>
+                        <span id="currentCoords" style="color: #666;">Đang xác định...</span>
+                    </div>
+                    <div>
+                        <strong>Địa chỉ:</strong><br>
+                        <span id="currentAddress" style="color: #666;">Đang xác định...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section thay đổi vị trí -->
+            <div class="location-section">
+                <h6><i class="fas fa-map-pin"></i> Thay đổi vị trí</h6>
+                <div class="location-input-group">
+                    <input type="text" id="searchAddress" class="location-input" placeholder="Nhập địa chỉ...">
+                    <button class="btn-set-location" onclick="searchAndSetLocation()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                <button class="btn-use-gps" onclick="useGPSLocation()">
+                    <i class="fas fa-location-dot"></i> Dùng vị trí GPS
+                </button>
+            </div>
+
+            <!-- Section tìm kiếm -->
+            <h5><i class="fas fa-search"></i> Tìm kiếm</h5>
+            
+            <label style="font-size: 13px; color: #333; display: block; margin-bottom: 6px; font-weight: 500;">Bán kính (km):</label>
+            <input type="number" id="radius" class="form-control" value="2" min="1" max="50">
+            <span class="small-text">Nhập số km muốn quét</span>
+
+            <button class="btn-scan" onclick="scanNearby()">
+                <i class="fas fa-search-location"></i> QUÉT QUÁN ĂN
+            </button>
+            
+            <div class="divider"></div>
+            
+            <!-- Trạng thái -->
+            <div id="status">📍 Đang đợi vị trí...</div>
+            
+            <!-- Nút dừng chỉ đường -->
+            <button id="stopRoutingBtn" onclick="stopRouting()" style="display:none;">
+                <i class="fas fa-times"></i> Dừng chỉ đường
+            </button>
+            
+            <!-- Danh sách kết quả -->
+            <div id="resultsList"></div>
+            
+            <!-- Nút quay lại -->
+            <a href="{% url 'index' %}" class="btn-back">
+                <i class="fas fa-arrow-left"></i> Quay lại Trang chủ
+            </a>
+        </div>
     </div>
 
     <div id="map"></div>
@@ -127,7 +344,9 @@
     var searchCircle = null;
     var markersLayer = L.layerGroup().addTo(map); // Layer chứa các quán ăn
     var routingControl = null; // Biến lưu đường đi
+    var restaurantMarker = null; // Biến lưu marker quán ăn
     var userLat = null, userLng = null;
+    var currentRestaurantLat = null, currentRestaurantLng = null; // 🔥 Lưu tọa độ quán ăn hiện tại
 
     // 2. Lấy vị trí người dùng (GPS trình duyệt)
     map.locate({setView: true, maxZoom: 14});
@@ -136,46 +355,218 @@
         userLat = e.latlng.lat;
         userLng = e.latlng.lng;
         
-        document.getElementById('status').innerText = "📍 Đã thấy bạn!";
+        // 🔥 Cập nhật hiển thị tọa độ hiện tại
+        document.getElementById('currentCoords').innerHTML = `${userLat.toFixed(6)}, ${userLng.toFixed(6)}`;
+        document.getElementById('currentAddress').innerHTML = `<i class='fas fa-spinner fa-spin'></i> Đang tìm địa chỉ...`;
+        
+        // Reverse geocode để lấy địa chỉ
+        fetch(`/api/reverse-geocode/?lat=${userLat}&lng=${userLng}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.address) {
+                    document.getElementById('currentAddress').innerHTML = data.address;
+                } else {
+                    document.getElementById('currentAddress').innerHTML = 'Không xác định được địa chỉ';
+                }
+            })
+            .catch(err => {
+                document.getElementById('currentAddress').innerHTML = 'Lỗi khi tìm địa chỉ';
+                console.error(err);
+            });
+        
+        document.getElementById('status').innerHTML = "<i class='fas fa-check-circle' style='color:#28a745;'></i> Đã thấy vị trí của bạn!";
         
         // Vẽ marker người dùng
         if (userMarker) map.removeLayer(userMarker);
         userMarker = L.marker(e.latlng, {
             icon: L.divIcon({
                 className: 'user-icon',
-                html: '<i class="fas fa-user-circle" style="font-size:30px; color:blue; background:white; border-radius:50%;"></i>',
+                html: '<i class="fas fa-user-circle" style="font-size:30px; color:#007bff; background:white; border-radius:50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></i>',
                 iconSize: [30, 30]
             })
-        }).addTo(map).bindPopup("Bạn đang ở đây").openPopup();
+        }).addTo(map).bindPopup("Bạn đang ở đây");
+        
+        // 🔥 Kiểm tra nếu có tham số restaurant_id trong URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const restaurantId = urlParams.get('restaurant_id');
+        if (restaurantId) {
+            autoShowDirections(restaurantId);
+        }
     });
 
     map.on('locationerror', function(e) {
-        document.getElementById('status').innerText = "⚠️ Không lấy được vị trí GPS.";
+        document.getElementById('status').innerHTML = "<i class='fas fa-exclamation-circle' style='color:#dc3545;'></i> Không lấy được vị trí GPS.";
         alert("Vui lòng bật GPS trình duyệt!");
     });
 
-    // 3. Hàm QUÉT QUÁN ĂN (Radius Search)
+    // 3. Hàm tự động hiển thị chỉ đường khi có tham số restaurant_id
+    function autoShowDirections(restaurantId) {
+        fetch(`/api/restaurants/?id=${restaurantId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.length > 0) {
+                    const restaurant = data[0];
+                    
+                    // Hiển thị thông tin quán ăn
+                    const infoBox = document.getElementById('restaurantCurrentInfo');
+                    const nameEl = document.getElementById('currentRestaurantName');
+                    const distanceEl = document.getElementById('currentRestaurantDistance');
+                    
+                    const distance = Math.sqrt(
+                        Math.pow(restaurant.lat - userLat, 2) + 
+                        Math.pow(restaurant.lng - userLng, 2)
+                    ) * 111; // Approximate km
+                    
+                    nameEl.innerHTML = `<i class="fas fa-utensils"></i> ${restaurant.name}`;
+                    distanceEl.innerHTML = `
+                        <i class="fas fa-map-marker-alt"></i> 
+                        <span class="distance-badge">${distance.toFixed(1)} km</span>
+                    `;
+                    infoBox.style.display = 'block';
+                    
+                    // 🔥 Lưu tọa độ quán ăn hiện tại
+                    currentRestaurantLat = restaurant.lat;
+                    currentRestaurantLng = restaurant.lng;
+                    
+                    // Cập nhật header
+                    document.getElementById('headerTitle').textContent = 'Chỉ đường';
+                    document.getElementById('headerSubtitle').textContent = restaurant.name;
+                    
+                    // 🔥 Thêm marker cho quán ăn
+                    if (restaurantMarker) map.removeLayer(restaurantMarker);
+                    restaurantMarker = L.marker([restaurant.lat, restaurant.lng], {
+                        icon: L.divIcon({
+                            className: 'restaurant-icon',
+                            html: '<i class="fas fa-utensils" style="font-size:32px; color:#cf2127; background:white; border-radius:50%; padding:6px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center;"></i>',
+                            iconSize: [44, 44],
+                            iconAnchor: [22, 44],
+                            popupAnchor: [0, -44]
+                        })
+                    }).addTo(map).bindPopup(`<b>${restaurant.name}</b><br><small>${restaurant.address}</small>`).openPopup();
+                    
+                    // Vẽ chỉ đường
+                    getDirections(restaurant.lat, restaurant.lng);
+                    
+                    // Zoom to restaurant
+                    const bounds = L.latLngBounds([[userLat, userLng], [restaurant.lat, restaurant.lng]]);
+                    map.fitBounds(bounds, {padding: [80, 50]});
+                } else {
+                    alert("Không tìm thấy quán ăn!");
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Lỗi khi lấy thông tin quán ăn!");
+            });
+    }
+
+    // 4. Hàm tìm kiếm và đặt vị trí từ địa chỉ
+    function searchAndSetLocation() {
+        const address = document.getElementById('searchAddress').value.trim();
+        if (!address) {
+            alert("Vui lòng nhập địa chỉ!");
+            return;
+        }
+        
+        document.getElementById('status').innerHTML = `<i class='fas fa-spinner fa-spin'></i> Đang tìm kiếm địa chỉ...`;
+        
+        // Gọi API geocode để chuyển địa chỉ thành tọa độ
+        const apiUrl = `/api/geocode-address/?q=${encodeURIComponent(address)}`;
+        console.log('Gọi API:', apiUrl);
+        
+        fetch(apiUrl)
+            .then(res => {
+                console.log('Response status:', res.status);
+                return res.json().then(data => ({status: res.status, data: data}));
+            })
+            .then(({status, data}) => {
+                console.log('Response data:', data);
+                
+                if (status === 200 && data.lat && data.lng) {
+                    userLat = data.lat;
+                    userLng = data.lng;
+                    
+                    // 🔥 Cập nhật hiển thị tọa độ
+                    document.getElementById('currentCoords').innerHTML = `${userLat.toFixed(6)}, ${userLng.toFixed(6)}`;
+                    document.getElementById('currentAddress').innerHTML = data.address || address;
+                    
+                    // Cập nhật marker người dùng
+                    if (userMarker) map.removeLayer(userMarker);
+                    userMarker = L.marker([userLat, userLng], {
+                        icon: L.divIcon({
+                            className: 'user-icon',
+                            html: '<i class="fas fa-user-circle" style="font-size:30px; color:#007bff; background:white; border-radius:50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></i>',
+                            iconSize: [30, 30]
+                        })
+                    }).addTo(map).bindPopup(`Bạn: ${data.address || address}`);
+                    
+                    map.setView([userLat, userLng], 15);
+                    document.getElementById('status').innerHTML = `<i class='fas fa-check-circle' style='color:#28a745;'></i> Đã cập nhật vị trí!`;
+                    document.getElementById('searchAddress').value = '';
+                    
+                    // 🔥 Xóa routing cũ khi thay đổi vị trí
+                    if (routingControl) {
+                        map.removeControl(routingControl);
+                        routingControl = null;
+                        document.getElementById('stopRoutingBtn').style.display = 'none';
+                    }
+                } else if (data.error) {
+                    document.getElementById('status').innerHTML = `<i class='fas fa-exclamation-circle' style='color:#dc3545;'></i> ${data.error}`;
+                    alert(data.error);
+                } else {
+                    document.getElementById('status').innerHTML = `<i class='fas fa-search' style='color:#dc3545;'></i> Không tìm thấy địa chỉ.`;
+                    alert("Không tìm thấy địa chỉ này. Vui lòng thử lại!");
+                }
+            })
+            .catch(err => {
+                console.error('Fetch error:', err);
+                document.getElementById('status').innerHTML = `<i class='fas fa-exclamation-circle' style='color:#dc3545;'></i> Lỗi kết nối!`;
+                alert("Lỗi khi tìm kiếm địa chỉ: " + err.message);
+            });
+    }
+
+    // 5. Hàm sử dụng GPS
+    function useGPSLocation() {
+        document.getElementById('status').innerHTML = `<i class='fas fa-spinner fa-spin'></i> Đang lấy GPS...`;
+        map.locate({setView: true, maxZoom: 14});
+    }
+
+    // 6. Hàm QUÉT QUÁN ĂN (Radius Search)
     function scanNearby() {
         if (!userLat) return alert("Chưa có vị trí của bạn!");
         var radiusKm = document.getElementById('radius').value;
         var radiusMeters = radiusKm * 1000;
-        document.getElementById('status').innerText = `🔄 Đang quét trong ${radiusKm}km...`;
+        document.getElementById('status').innerHTML = `<i class='fas fa-spinner fa-spin'></i> Đang quét trong ${radiusKm}km...`;
+        
+        // Ẩn thông tin quán hiện tại khi quét
+        document.getElementById('restaurantCurrentInfo').style.display = 'none';
+        document.getElementById('headerTitle').textContent = 'Tìm quanh đây';
+        document.getElementById('headerSubtitle').textContent = 'Khám phá các quán ăn gần bạn';
+        
+        // 🔥 Xóa routing cũ khi quét
+        if (routingControl) {
+            map.removeControl(routingControl);
+            routingControl = null;
+            document.getElementById('stopRoutingBtn').style.display = 'none';
+        }
+        
         if (searchCircle) map.removeLayer(searchCircle);
         searchCircle = L.circle([userLat, userLng], {
-            color: 'red', fillColor: '#f03', fillOpacity: 0.1, radius: radiusMeters
+            color: '#cf2127', fillColor: '#cf2127', fillOpacity: 0.1, radius: radiusMeters
         }).addTo(map);
         map.fitBounds(searchCircle.getBounds());
+        
         fetch(`/api/nearby/?lat=${userLat}&lng=${userLng}&radius=${radiusKm}`)
             .then(res => res.json())
             .then(data => {
                 markersLayer.clearLayers();
                 let html = '';
                 if (data.length === 0) {
-                    document.getElementById('status').innerText = "❌ Không tìm thấy quán nào.";
+                    document.getElementById('status').innerHTML = "<i class='fas fa-search' style='color:#dc3545;'></i> Không tìm thấy quán nào.";
                     document.getElementById('resultsList').innerHTML = '';
                     return;
                 }
-                document.getElementById('status').innerText = `✅ Tìm thấy ${data.length} quán!`;
+                document.getElementById('status').innerHTML = `<i class='fas fa-check-circle' style='color:#28a745;'></i> Tìm thấy <strong>${data.length}</strong> quán!`;
                 window._popupMarkerMap = {};
                 html = data.map(r => {
                     var imgHtml = r.image ? `<img src='${r.image}' class='result-thumb'>` : `<div class='result-thumb'></div>`;
@@ -183,7 +574,7 @@
                         ${imgHtml}
                         <div class='result-info'>
                             <div class='result-title'>${r.name}</div>
-                            <div class='result-address'><i class='fas fa-map-marker-alt text-danger'></i> ${r.address}</div>
+                            <div class='result-address'><i class='fas fa-map-marker-alt'></i> ${r.address}</div>
                             <div class='result-distance'>${r.distance} km</div>
                             <div class='result-actions'>
                                 <a href='/restaurant/${r.id}/' class='btn-detail'>Chi tiết</a>
@@ -198,11 +589,11 @@
                     var popupContent = `
                         ${imgHtml}
                         <b>${r.name}</b><br>
-                        <i class="fas fa-map-marker-alt text-danger"></i> ${r.address}<br>
+                        <i class="fas fa-map-marker-alt" style="color:#cf2127;"></i> ${r.address}<br>
                         <small>Cách bạn: <b>${r.distance} km</b></small>
                         <hr style="margin:5px 0">
-                        <button class="btn-route" onclick="getDirections(${r.lat}, ${r.lng})">
-                            <i class="fas fa-directions"></i> Chỉ đường ngay
+                        <button class="btn-route" onclick="getDirections(${r.lat}, ${r.lng})" style="width:100%; padding:8px;">
+                            <i class="fas fa-directions"></i> Chỉ đường
                         </button>
                     `;
                     var marker = L.marker([r.lat, r.lng]).addTo(markersLayer).bindPopup(popupContent);
@@ -213,7 +604,7 @@
             .catch(err => console.error(err));
     }
 
-    // 4. Hàm CHỈ ĐƯỜNG (Routing)
+    // 7. Hàm CHỈ ĐƯỜNG (Routing)
     function getDirections(destLat, destLng) {
         if (!userLat) return alert("Cần vị trí của bạn để chỉ đường!");
         if (routingControl) {
@@ -225,8 +616,7 @@
                 L.latLng(destLat, destLng)
             ],
             routeWhileDragging: false,
-            language: 'en',
-            showAlternatives: true,
+            showAlternatives: false,
             lineOptions: {
                 styles: [{color: 'blue', opacity: 0.6, weight: 5}]
             },
@@ -234,6 +624,23 @@
         }).addTo(map);
         document.getElementById('stopRoutingBtn').style.display = 'block';
         map.closePopup();
+    }
+
+    // 🔥 Hàm CHỈ ĐƯỜNG cho quán ăn hiện tại (sử dụng tọa độ mới)
+    function getDirectionsForCurrentRestaurant() {
+        console.log('getDirectionsForCurrentRestaurant called');
+        console.log('userLat:', userLat, 'userLng:', userLng);
+        console.log('currentRestaurantLat:', currentRestaurantLat, 'currentRestaurantLng:', currentRestaurantLng);
+        
+        if (!userLat || !userLng) {
+            alert("Cần vị trí của bạn để chỉ đường!");
+            return;
+        }
+        if (!currentRestaurantLat || !currentRestaurantLng) {
+            alert("Không có thông tin quán ăn!");
+            return;
+        }
+        getDirections(currentRestaurantLat, currentRestaurantLng);
     }
 
     function stopRouting() {
@@ -249,6 +656,18 @@
             window._popupMarkerMap[id].openPopup();
         }
     }
+
+    // Xử lý Enter key trong input địa chỉ
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('searchAddress');
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchAndSetLocation();
+                }
+            });
+        }
+    });
 </script>
 
 </body>

@@ -300,7 +300,14 @@ def user_booking_history(request):
 # ============================================
 
 def api_get_restaurants(request):
-    restaurants = Restaurant.objects.prefetch_related('gallery_images').all()
+    # Hỗ trợ lọc theo ID nếu có tham số id
+    restaurant_id = request.GET.get('id')
+    
+    if restaurant_id:
+        restaurants = Restaurant.objects.prefetch_related('gallery_images').filter(id=restaurant_id)
+    else:
+        restaurants = Restaurant.objects.prefetch_related('gallery_images').all()
+    
     data = []
 
     for r in restaurants:
@@ -311,6 +318,8 @@ def api_get_restaurants(request):
             'district': r.get_district_display(),
             'latitude': r.location.y,
             'longitude': r.location.x,
+            'lat': r.location.y,
+            'lng': r.location.x,
             'image': get_restaurant_display_image(r)
         })
 
@@ -1151,6 +1160,7 @@ def send_booking_confirmation_email(reservation):
         )
 
 
+@csrf_exempt
 @require_GET
 def api_geocode_address(request):
     query = request.GET.get('q', '').strip()
@@ -1175,7 +1185,18 @@ def api_geocode_address(request):
             timeout=10
         )
         response.raise_for_status()
-        return JsonResponse(response.json(), safe=False)
+        
+        # Lấy kết quả đầu tiên và trả về lat, lng
+        results = response.json()
+        if results:
+            first_result = results[0]
+            return JsonResponse({
+                'lat': float(first_result.get('lat')),
+                'lng': float(first_result.get('lon')),
+                'address': first_result.get('display_name', query)
+            })
+        else:
+            return JsonResponse({'error': 'Không tìm thấy địa chỉ'}, status=404)
 
     except requests.RequestException as e:
         return JsonResponse({'error': f'Lỗi geocoding: {str(e)}'}, status=500)
