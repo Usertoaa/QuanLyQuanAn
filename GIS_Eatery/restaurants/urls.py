@@ -51,6 +51,12 @@ urlpatterns = [
     path('register/', views.register_view, name='register'),
     path('login/', auth_views.LoginView.as_view(template_name='restaurants/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='index'), name='logout'),
+    
+    # Email verification & Password reset
+    path('verify-email/<str:token>/', views.verify_email, name='verify_email'),
+    path('verification-pending/', views.verification_pending, name='verification_pending'),
+    path('forgot-password/', views.forgot_password, name='forgot_password'),
+    path('reset-password/<str:token>/', views.reset_password, name='reset_password'),
 ]
 
 if settings.DEBUG:

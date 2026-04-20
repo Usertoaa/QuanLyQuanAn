@@ -1,5 +1,7 @@
 import requests
 from datetime import datetime, timedelta
+import uuid
+import hashlib
 
 from django.shortcuts import get_object_or_404, render, redirect
 from django.http import JsonResponse
@@ -14,10 +16,12 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.gis.measure import D
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login
+from django.contrib.auth import login, authenticate
+from django.contrib.auth.models import User
 from django.contrib import messages as flash_msg
 from django.core.mail import send_mail
 from django.utils.html import strip_tags
+from django.urls import reverse
 
 from .models import (
     Restaurant,
@@ -29,7 +33,10 @@ from .models import (
     RestaurantImage,
     PickupOrder,
     PickupOrderItem,
+    UserProfile,
+    PasswordResetToken,
 )
+from .forms import CustomUserCreationForm, CustomSetPasswordForm
 
 # ============================================
 # CONSTANTS
@@ -273,18 +280,250 @@ def map_view(request):
 # PHẦN 2: AUTHENTICATION & USER PROFILE
 
 def register_view(request):
+    """
+    Đăng ký tài khoản mới với xác thực email
+    """
+    if request.user.is_authenticated:
+        return redirect('index')
+    
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = CustomUserCreationForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            login(request, user)
-            flash_msg.success(request, f"Chào mừng {user.username}!")
-            return redirect('index')
-        flash_msg.error(request, "Lỗi đăng ký. Vui lòng kiểm tra lại thông tin.")
+            user = form.save(commit=False)
+            user.is_active = False  # Chưa kích hoạt cho đến khi xác thực email
+            user.save()
+            
+            # Tạo UserProfile và gửi email xác thực
+            send_verification_email(request, user)
+            
+            flash_msg.success(
+                request,
+                'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.'
+            )
+            return redirect('verification_pending')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    flash_msg.error(request, f'{field}: {error}')
     else:
-        form = UserCreationForm()
+        form = CustomUserCreationForm()
 
     return render(request, 'restaurants/register.html', {'form': form})
+
+
+def send_verification_email(request, user):
+    """
+    Gửi email xác thực cho người dùng
+    """
+    # Tạo hoặc lấy UserProfile
+    profile, created = UserProfile.objects.get_or_create(user=user)
+    
+    # Tạo token xác thực
+    verification_token = hashlib.sha256(f'{user.id}{uuid.uuid4()}'.encode()).hexdigest()
+    profile.email_verification_token = verification_token
+    profile.email_verification_expires = timezone.now() + timedelta(hours=24)
+    profile.save()
+    
+    # Tạo link xác thực
+    verification_link = request.build_absolute_uri(
+        reverse('verify_email', kwargs={'token': verification_token})
+    )
+    
+    # Nội dung email
+    subject = '🔐 Xác thực email - GIS Eatery'
+    html_message = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; border-radius: 10px;">
+                <h2 style="color: #cf2127; text-align: center;">🍽️ Chào mừng đến GIS Eatery!</h2>
+                <p>Xin chào <strong>{user.username}</strong>,</p>
+                <p>Cảm ơn bạn đã đăng ký tài khoản. Vui lòng nhấp vào link dưới đây để xác thực email:</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{verification_link}" 
+                       style="display: inline-block; padding: 12px 30px; background-color: #cf2127; 
+                              color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                        Xác thực email
+                    </a>
+                </div>
+                
+                <p>Hoặc sao chép link dưới đây vào trình duyệt:</p>
+                <p style="background-color: #e9ecef; padding: 10px; border-radius: 5px; word-break: break-all;">
+                    {verification_link}
+                </p>
+                
+                <p style="color: #999; font-size: 12px;">
+                    <strong>Lưu ý:</strong> Link xác thực sẽ hết hạn sau 24 giờ.
+                </p>
+                
+                <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+                <p style="color: #999; font-size: 12px; text-align: center;">
+                    Nếu bạn không đăng ký tài khoản này, vui lòng bỏ qua email này.
+                </p>
+            </div>
+        </body>
+    </html>
+    """
+    
+    send_mail(
+        subject,
+        strip_tags(html_message),
+        'noreply@giseatery.com',
+        [user.email],
+        html_message=html_message,
+        fail_silently=False,
+    )
+
+
+def verify_email(request, token):
+    """
+    Xác thực email bằng token
+    """
+    try:
+        profile = UserProfile.objects.get(email_verification_token=token)
+        
+        # Kiểm tra token còn hiệu lực không
+        if profile.email_verification_expires < timezone.now():
+            flash_msg.error(request, 'Token xác thực đã hết hạn. Vui lòng đăng ký lại.')
+            return redirect('register')
+        
+        # Kích hoạt tài khoản
+        user = profile.user
+        user.is_active = True
+        user.save()
+        
+        profile.email_verified = True
+        profile.email_verification_token = ''
+        profile.email_verification_expires = None
+        profile.save()
+        
+        flash_msg.success(request, '✅ Email xác thực thành công! Bạn có thể đăng nhập ngay.')
+        return redirect('login')
+    
+    except UserProfile.DoesNotExist:
+        flash_msg.error(request, 'Token xác thực không hợp lệ.')
+        return redirect('register')
+
+
+def verification_pending(request):
+    """
+    Trang chờ xác thực email
+    """
+    return render(request, 'restaurants/verification_pending.html')
+
+
+def forgot_password(request):
+    """
+    Yêu cầu reset mật khẩu
+    """
+    if request.user.is_authenticated:
+        return redirect('index')
+    
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+        
+        try:
+            user = User.objects.get(email=email, is_active=True)
+            
+            # Xóa các token cũ
+            PasswordResetToken.objects.filter(user=user, is_used=False).delete()
+            
+            # Tạo token mới
+            reset_token = hashlib.sha256(f'{user.id}{uuid.uuid4()}'.encode()).hexdigest()
+            token_obj = PasswordResetToken.objects.create(
+                user=user,
+                token=reset_token,
+                expires_at=timezone.now() + timedelta(hours=1)
+            )
+            
+            # Gửi email reset
+            reset_link = request.build_absolute_uri(
+                reverse('reset_password', kwargs={'token': reset_token})
+            )
+            
+            subject = '🔑 Reset mật khẩu - GIS Eatery'
+            html_message = f"""
+            <html>
+                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                    <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; border-radius: 10px;">
+                        <h2 style="color: #cf2127; text-align: center;">🔐 Reset mật khẩu</h2>
+                        <p>Xin chào <strong>{user.username}</strong>,</p>
+                        <p>Chúng tôi nhận được yêu cầu reset mật khẩu. Nhấp vào link dưới đây để tạo mật khẩu mới:</p>
+                        
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="{reset_link}" 
+                               style="display: inline-block; padding: 12px 30px; background-color: #cf2127; 
+                                      color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                                Reset mật khẩu
+                            </a>
+                        </div>
+                        
+                        <p style="color: #999; font-size: 12px;">
+                            <strong>Lưu ý:</strong> Link sẽ hết hạn sau 1 giờ.
+                        </p>
+                        
+                        <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+                        <p style="color: #999; font-size: 12px; text-align: center;">
+                            Nếu bạn không yêu cầu reset mật khẩu, vui lòng bỏ qua email này.
+                        </p>
+                    </div>
+                </body>
+            </html>
+            """
+            
+            send_mail(
+                subject,
+                strip_tags(html_message),
+                'noreply@giseatery.com',
+                [user.email],
+                html_message=html_message,
+                fail_silently=False,
+            )
+            
+            flash_msg.success(request, 'Email reset mật khẩu đã được gửi. Vui lòng kiểm tra email.')
+            return redirect('login')
+        
+        except User.DoesNotExist:
+            # Không tiết lộ rằng email không tồn tại (bảo mật)
+            flash_msg.success(request, 'Nếu email tồn tại, bạn sẽ nhận được hướng dẫn reset.')
+            return redirect('login')
+    
+    return render(request, 'restaurants/forgot_password.html')
+
+
+def reset_password(request, token):
+    """
+    Reset mật khẩu bằng token
+    """
+    try:
+        token_obj = PasswordResetToken.objects.get(
+            token=token,
+            is_used=False,
+            expires_at__gt=timezone.now()
+        )
+        user = token_obj.user
+        
+        if request.method == 'POST':
+            form = CustomSetPasswordForm(request.POST)
+            if form.is_valid():
+                new_password = form.cleaned_data['new_password1']
+                user.set_password(new_password)
+                user.save()
+                
+                # Đánh dấu token đã sử dụng
+                token_obj.is_used = True
+                token_obj.save()
+                
+                flash_msg.success(request, '✅ Mật khẩu đã được reset thành công. Hãy đăng nhập!')
+                return redirect('login')
+        else:
+            form = CustomSetPasswordForm()
+        
+        return render(request, 'restaurants/reset_password.html', {'form': form, 'token': token})
+    
+    except PasswordResetToken.DoesNotExist:
+        flash_msg.error(request, 'Token reset mật khẩu không hợp lệ hoặc đã hết hạn.')
+        return redirect('forgot_password')
 
 
 @login_required(login_url='login')

@@ -310,3 +310,57 @@ class PickupOrderItem(models.Model):
 
     def __str__(self):
         return f"{self.dish.name} x {self.quantity}"
+
+
+class UserProfile(models.Model):
+    """
+    Mở rộng Django User model để thêm email verification
+    """
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='profile'
+    )
+    email_verified = models.BooleanField(default=False, verbose_name="Email đã xác thực")
+    email_verification_token = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Token xác thực email"
+    )
+    email_verification_expires = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Thời hạn xác thực email"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Thông tin người dùng"
+        verbose_name_plural = "Thông tin người dùng"
+
+    def __str__(self):
+        return f"Profile - {self.user.username}"
+
+
+class PasswordResetToken(models.Model):
+    """
+    Model để lưu token reset mật khẩu
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='password_reset_tokens'
+    )
+    token = models.CharField(max_length=100, unique=True, verbose_name="Token")
+    expires_at = models.DateTimeField(verbose_name="Hết hạn lúc")
+    is_used = models.BooleanField(default=False, verbose_name="Đã sử dụng")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Token reset mật khẩu"
+        verbose_name_plural = "Token reset mật khẩu"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Reset token - {self.user.username}"
