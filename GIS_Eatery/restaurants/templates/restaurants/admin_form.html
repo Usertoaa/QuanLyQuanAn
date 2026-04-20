@@ -306,28 +306,51 @@
     // API Fetch Functions
     async function fetchGeocode(query) {
         const url = `/api/geocode-address/?q=${encodeURIComponent(query)}`;
-        const response = await fetch(url, {
-            headers: { 'Accept': 'application/json' }
-        });
+        try {
+            const response = await fetch(url, {
+                headers: { 'Accept': 'application/json' }
+            });
 
-        if (!response.ok) {
-            throw new Error('Không thể kết nối dịch vụ geocoding');
+            if (!response.ok) {
+                console.warn(`Geocode API error: ${response.status}`);
+                return { error: `HTTP ${response.status}` };
+            }
+
+            const data = await response.json();
+            // Nếu response là array, return ngay
+            if (Array.isArray(data)) {
+                return data;
+            }
+            // Nếu có error field, return error object
+            if (data.error) {
+                return data;
+            }
+            // Ngược lại, wrap trong array
+            return Array.isArray(data) ? data : [data];
+        } catch (error) {
+            console.error('Geocode fetch error:', error);
+            return { error: error.message };
         }
-
-        return await response.json();
     }
 
     async function fetchReverseGeocode(lat, lng) {
         const url = `/api/reverse-geocode-address/?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`;
-        const response = await fetch(url, {
-            headers: { 'Accept': 'application/json' }
-        });
+        try {
+            const response = await fetch(url, {
+                headers: { 'Accept': 'application/json' }
+            });
 
-        if (!response.ok) {
-            throw new Error('Không thể reverse geocode');
+            if (!response.ok) {
+                console.warn(`Reverse geocode API error: ${response.status}`);
+                return { error: `HTTP ${response.status}` };
+            }
+
+            const data = await response.json();
+            return data || { error: 'Không có kết quả' };
+        } catch (error) {
+            console.error('Reverse geocode fetch error:', error);
+            return { error: error.message };
         }
-
-        return await response.json();
     }
 
     // ============================================
@@ -337,6 +360,13 @@
     async function reverseGeocode(lat, lng) {
         try {
             const data = await fetchReverseGeocode(lat, lng);
+
+            // Kiểm tra nếu có lỗi
+            if (data.error) {
+                console.warn('Reverse geocode error:', data.error);
+                addressInput.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                return;
+            }
 
             if (!data) {
                 addressInput.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
@@ -376,12 +406,24 @@
             // Thử từng query đến khi tìm được kết quả
             let results = [];
             for (const query of queries) {
-                results = await fetchGeocode(query);
-                if (results.length > 0) break;
+                try {
+                    const data = await fetchGeocode(query);
+                    // Kiểm tra xem response có phải là array hay object lỗi
+                    if (Array.isArray(data)) {
+                        results = data;
+                        if (results.length > 0) break;
+                    } else if (data && data.error) {
+                        console.warn(`Query "${query}" failed: ${data.error}`);
+                        continue;
+                    }
+                } catch (err) {
+                    console.warn(`Query "${query}" error: ${err.message}`);
+                    continue;
+                }
             }
 
-            if (results.length === 0) {
-                alert('Không tìm thấy địa chỉ phù hợp. Hãy nhập rõ số nhà, đường, quận.');
+            if (!Array.isArray(results) || results.length === 0) {
+                alert('Không tìm thấy địa chỉ phù hợp. Hãy nhập rõ số nhà, đường, quận hoặc nhấp trực tiếp lên bản đồ.');
                 return;
             }
 

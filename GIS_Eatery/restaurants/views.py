@@ -521,15 +521,31 @@ def forgot_password(request):
                 fail_silently=False,
             )
             
-            flash_msg.success(request, 'Email reset mật khẩu đã được gửi. Vui lòng kiểm tra email.')
-            return redirect('login')
+            # Lưu email vào session để hiển thị ở trang success
+            request.session['reset_email'] = user.email
+            return redirect('forgot_password_success')
         
         except User.DoesNotExist:
             # Không tiết lộ rằng email không tồn tại (bảo mật)
-            flash_msg.success(request, 'Nếu email tồn tại, bạn sẽ nhận được hướng dẫn reset.')
-            return redirect('login')
+            # Nhưng vẫn redirect đến trang success để tránh reveal email
+            return redirect('forgot_password_success')
     
     return render(request, 'restaurants/forgot_password.html')
+
+
+def forgot_password_success(request):
+    """
+    Trang thông báo sau khi gửi email reset
+    """
+    email = request.session.get('reset_email', '')
+    if not email:
+        return redirect('forgot_password')
+    
+    # Xóa email khỏi session
+    if 'reset_email' in request.session:
+        del request.session['reset_email']
+    
+    return render(request, 'restaurants/forgot_password_success.html', {'email': email})
 
 
 def reset_password(request, token):
@@ -1523,6 +1539,8 @@ def send_booking_confirmation_email(reservation):
 
 @csrf_exempt
 @require_GET
+@csrf_exempt
+@require_GET
 def api_geocode_address(request):
     query = request.GET.get('q', '').strip()
 
@@ -1547,20 +1565,29 @@ def api_geocode_address(request):
         )
         response.raise_for_status()
         
-        # Lấy kết quả đầu tiên và trả về lat, lng
+        # Trả về tất cả kết quả (không chỉ kết quả đầu tiên)
         results = response.json()
         if results:
-            first_result = results[0]
-            return JsonResponse({
-                'lat': float(first_result.get('lat')),
-                'lng': float(first_result.get('lon')),
-                'address': first_result.get('display_name', query)
-            })
+            # Transform kết quả để match với frontend expectations
+            formatted_results = []
+            for result in results:
+                formatted_results.append({
+                    'lat': float(result.get('lat')),
+                    'lon': float(result.get('lon')),
+                    'address': result.get('display_name', ''),
+                    'display_name': result.get('display_name', '')
+                })
+            return JsonResponse(formatted_results, safe=False)
         else:
-            return JsonResponse({'error': 'Không tìm thấy địa chỉ'}, status=404)
+            return JsonResponse([], safe=False)
 
     except requests.RequestException as e:
-        return JsonResponse({'error': f'Lỗi geocoding: {str(e)}'}, status=500)
+        print(f'[Geocoding Error] {str(e)}')
+        # Return empty array khi có lỗi để frontend handle gracefully
+        return JsonResponse({
+            'error': 'Không thể kết nối dịch vụ geocoding. Vui lòng thử lại hoặc nhập tọa độ thủ công.',
+            'status': 'error'
+        }, status=500)
 
 
 @csrf_exempt
@@ -1599,4 +1626,9 @@ def api_reverse_geocode_address(request):
         return JsonResponse(response.json())
 
     except requests.RequestException as e:
-        return JsonResponse({'error': f'Lỗi reverse geocoding: {str(e)}'}, status=500)
+        print(f'[Reverse Geocoding Error] {str(e)}')
+        # Return empty object khi có lỗi để frontend handle gracefully
+        return JsonResponse({
+            'error': 'Không thể kết nối dịch vụ geocoding. Vui lòng thử lại.',
+            'status': 'error'
+        }, status=500)

@@ -60,6 +60,7 @@ urlpatterns = [
     path('verification-pending/', views.verification_pending, name='verification_pending'),
     path('verification-success/', views.verification_success, name='verification_success'),
     path('forgot-password/', views.forgot_password, name='forgot_password'),
+    path('forgot-password-success/', views.forgot_password_success, name='forgot_password_success'),
     path('reset-password/<str:token>/', views.reset_password, name='reset_password'),
 ]
 
