@@ -1,10 +1,17 @@
 from django.contrib.gis import admin
-from .models import Dish, Restaurant, Table, Reservation
+from .models import Dish, Restaurant, Table, Reservation, ReservationItem
 
 
 class DishInline(admin.TabularInline):
     model = Dish
     extra = 1
+
+
+class ReservationItemInline(admin.TabularInline):
+    model = ReservationItem
+    extra = 1
+    readonly_fields = ('created_at',)
+
 
 @admin.register(Restaurant)
 class RestaurantAdmin(admin.GISModelAdmin):
@@ -21,9 +28,31 @@ class TableAdmin(admin.ModelAdmin):
 
 @admin.register(Reservation)
 class ReservationAdmin(admin.ModelAdmin):
-    list_display = ('customer_name', 'get_restaurant', 'table', 'booking_time', 'number_of_people')
-    list_filter = ('booking_time',)
+    list_display = ('customer_name', 'get_restaurant', 'table', 'booking_time', 'number_of_people', 'status', 'get_items_count')
+    list_filter = ('booking_time', 'status')
+    readonly_fields = ('created_at', 'updated_at')
+    inlines = [ReservationItemInline]
 
     def get_restaurant(self, obj):
         return obj.table.restaurant.name
     get_restaurant.short_description = 'Quán ăn'
+    
+    def get_items_count(self, obj):
+        return obj.get_items_count() or 'Không'
+    get_items_count.short_description = 'Số lượng món'
+
+
+@admin.register(ReservationItem)
+class ReservationItemAdmin(admin.ModelAdmin):
+    list_display = ('get_reservation_customer', 'dish', 'quantity', 'get_subtotal')
+    list_filter = ('created_at',)
+    search_fields = ('reservation__customer_name', 'dish__name')
+    readonly_fields = ('created_at', 'get_subtotal')
+    
+    def get_reservation_customer(self, obj):
+        return f"{obj.reservation.customer_name} - {obj.reservation.table.restaurant.name}"
+    get_reservation_customer.short_description = 'Đơn của'
+    
+    def get_subtotal(self, obj):
+        return f"{obj.get_subtotal():,}đ"
+    get_subtotal.short_description = 'Thành tiền'

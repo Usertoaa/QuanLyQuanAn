@@ -108,6 +108,7 @@ class Reservation(models.Model):
         related_name='reservations'
     )
     customer_name = models.CharField(max_length=100, verbose_name="Tên khách hàng")
+    customer_phone = models.CharField(max_length=20, blank=True, verbose_name="Số điện thoại")
     booking_time = models.DateTimeField(verbose_name="Thời gian đặt")
     number_of_people = models.PositiveIntegerField(verbose_name="Số người")
     status = models.CharField(
@@ -127,7 +128,9 @@ class Reservation(models.Model):
         blank=True,
         related_name='reservations'
     )
+    note = models.TextField(blank=True, verbose_name="Ghi chú")
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-booking_time']
@@ -136,6 +139,44 @@ class Reservation(models.Model):
 
     def __str__(self):
         return f"{self.customer_name} - {self.table.restaurant.name} - {self.booking_time}"
+    
+    def get_total_price(self):
+        """Tính tổng giá tiền của các món đã chọn"""
+        return sum(item.dish.price * item.quantity for item in self.items.all())
+    
+    def get_items_count(self):
+        """Lấy tổng số lượng món"""
+        return sum(item.quantity for item in self.items.all())
+
+
+class ReservationItem(models.Model):
+    """Lưu các món ăn được chọn trong một đơn đặt bàn"""
+    reservation = models.ForeignKey(
+        Reservation,
+        on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name="Đơn đặt bàn"
+    )
+    dish = models.ForeignKey(
+        'Dish',
+        on_delete=models.CASCADE,
+        related_name='reservation_items',
+        verbose_name="Món ăn"
+    )
+    quantity = models.PositiveIntegerField(default=1, verbose_name="Số lượng")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Chi tiết đơn đặt bàn"
+        verbose_name_plural = "Chi tiết đơn đặt bàn"
+        unique_together = ['reservation', 'dish']
+
+    def __str__(self):
+        return f"{self.dish.name} x {self.quantity} - {self.reservation}"
+    
+    def get_subtotal(self):
+        """Tính tổng giá của món này"""
+        return self.dish.price * self.quantity
 
 
 class Dish(models.Model):

@@ -345,27 +345,85 @@
                             <input type="hidden" name="restaurant_id" value="{{ restaurant.id }}">
 
                             <div class="mb-3">
-                                <label class="fw-bold small">Họ tên:</label>
-                                <input type="text" name="name" class="form-control" placeholder="Nhập tên..." required>
+                                <label class="fw-bold small">👤 Họ tên:</label>
+                                <input type="text" name="name" class="form-control" placeholder="Nhập tên của bạn..." required>
                             </div>
 
                             <div class="mb-3">
-                                <label class="fw-bold small">Thời gian:</label>
-                                <input type="datetime-local" name="time" class="form-control" required>
+                                <label class="fw-bold small">📱 Số điện thoại (tùy chọn):</label>
+                                <input type="tel" name="phone" class="form-control" placeholder="Nhập số điện thoại...">
                             </div>
 
                             <div class="mb-3">
-                                <label class="fw-bold small">Số người:</label>
-                                <select name="people" class="form-select">
+                                <label class="fw-bold small">🕐 Thời gian đặt:</label>
+                                <input type="datetime-local" name="time" class="form-control" id="bookingTime" required>
+                                <small class="text-muted d-block mt-1">⚠️ Phải đặt trễ hơn 90 phút từ hiện tại</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="fw-bold small">👥 Số người:</label>
+                                <select name="people" class="form-select" id="numPeople">
+                                    <option value="1">1 người</option>
                                     <option value="2">2 người</option>
+                                    <option value="3">3 người</option>
                                     <option value="4" selected>4 người</option>
+                                    <option value="5">5 người</option>
                                     <option value="6">6 người</option>
                                     <option value="8">8 người</option>
+                                    <option value="10">10 người</option>
+                                    <option value="12">12 người</option>
+                                    <option value="15">15 người</option>
+                                    <option value="20">20 người</option>
                                 </select>
                             </div>
 
+                            <!-- ✨ CHỌN CÁC MÓN ĂN -->
+                            <div class="mb-3">
+                                <label class="fw-bold small d-block mb-2">🍽️ Chọn các món ăn (tùy chọn):</label>
+                                <div class="border rounded p-2" style="max-height: 280px; overflow-y: auto; background-color: #f9f9f9;">
+                                    {% for dish in restaurant.dishes.all %}
+                                        {% if dish.is_available %}
+                                        <div class="booking-dish-item d-flex justify-content-between align-items-center py-2 px-2 border-bottom">
+                                            <div class="flex-grow-1">
+                                                <div class="fw-bold small">{{ dish.name }}</div>
+                                                <small class="text-danger">{{ dish.price|floatformat:0 }}đ</small>
+                                            </div>
+                                            <input type="number"
+                                                   class="form-control booking-qty"
+                                                   data-dish-id="{{ dish.id }}"
+                                                   data-dish-price="{{ dish.price|floatformat:0 }}"
+                                                   data-dish-name="{{ dish.name }}"
+                                                   style="width: 70px;"
+                                                   min="0"
+                                                   value="0">
+                                        </div>
+                                        {% endif %}
+                                    {% empty %}
+                                        <div class="text-muted text-center py-3 fst-italic">
+                                            Quán chưa cập nhật thực đơn
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                <small class="text-muted d-block mt-2">
+                                    💡 Chọn số lượng > 0 cho các món bạn muốn
+                                </small>
+                            </div>
+
+                            <!-- Hiển thị tổng tiền -->
+                            <div id="totalPriceBox" class="alert alert-info d-none mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span>💰 Tổng tiền các món:</span>
+                                    <strong id="totalPrice">0đ</strong>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="fw-bold small">📝 Ghi chú (tùy chọn):</label>
+                                <textarea name="note" class="form-control" rows="2" placeholder="Ví dụ: không cay, ít đường..."></textarea>
+                            </div>
+
                             <button type="submit" class="btn btn-danger w-100 fw-bold py-2">
-                                XÁC NHẬN ĐẶT BÀN
+                                ✅ XÁC NHẬN ĐẶT BÀN
                             </button>
                         </form>
 
@@ -472,11 +530,67 @@
             const bookingForm = document.getElementById('booking-form');
             const pickupForm = document.getElementById('pickup-form');
 
+            // ✨ Xử lý cập nhật tổng tiền khi chọn/sửa số lượng món
             if (bookingForm) {
+                const qtyInputs = bookingForm.querySelectorAll('.booking-qty');
+                const totalPriceBox = document.getElementById('totalPriceBox');
+                const totalPriceSpan = document.getElementById('totalPrice');
+
+                function updateTotalPrice() {
+                    let total = 0;
+                    qtyInputs.forEach(input => {
+                        const qty = parseInt(input.value) || 0;
+                        const price = parseInt(input.getAttribute('data-dish-price')) || 0;
+                        total += qty * price;
+                    });
+
+                    if (total > 0) {
+                        totalPriceBox.classList.remove('d-none');
+                        totalPriceSpan.textContent = total.toLocaleString() + 'đ';
+                    } else {
+                        totalPriceBox.classList.add('d-none');
+                    }
+                }
+
+                qtyInputs.forEach(input => {
+                    input.addEventListener('change', updateTotalPrice);
+                    input.addEventListener('input', updateTotalPrice);
+                });
+
+                // ✨ Xử lý submit form đặt bàn
                 bookingForm.addEventListener('submit', function (e) {
                     e.preventDefault();
 
+                    const timeInput = document.getElementById('bookingTime').value;
+                    const bookingTime = new Date(timeInput);
+                    const now = new Date();
+
+                    // Kiểm tra 90 phút
+                    const minTime = new Date(now.getTime() + 90 * 60000);
+                    if (bookingTime < minTime) {
+                        alert('⚠️ Vui lòng đặt bàn trễ hơn 90 phút từ hiện tại!\n\nThời gian sớm nhất: ' + minTime.toLocaleString('vi-VN'));
+                        return;
+                    }
+
                     var formData = new FormData(bookingForm);
+                    
+                    // ✨ Thêm danh sách các món ăn được chọn
+                    const dishIds = [];
+                    const quantities = [];
+                    qtyInputs.forEach(input => {
+                        const qty = parseInt(input.value) || 0;
+                        if (qty > 0) {
+                            dishIds.push(input.getAttribute('data-dish-id'));
+                            quantities.push(qty);
+                        }
+                    });
+
+                    // Thêm vào FormData
+                    dishIds.forEach((id, index) => {
+                        formData.append('dish_ids[]', id);
+                        formData.append('quantities[]', quantities[index]);
+                    });
+
                     var btn = bookingForm.querySelector('button');
                     var msgBox = document.getElementById('msg-box');
 
@@ -484,7 +598,7 @@
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
                     msgBox.innerHTML = '';
 
-                    fetch('/api/book/', {
+                    fetch('/api/book-table/', {
                         method: 'POST',
                         body: formData
                     })
@@ -492,20 +606,28 @@
                     .then(data => {
                         if (data.status === 'success') {
                             msgBox.className = "mt-2 text-center small fw-bold text-success";
-                            msgBox.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
+                            let successMsg = '<i class="fas fa-check-circle"></i> ' + data.message;
+                            if (data.items_count > 0) {
+                                successMsg += `<br>📋 Đã chọn ${data.items_count} món (${data.total_price.toLocaleString()}đ)`;
+                            }
+                            msgBox.innerHTML = successMsg;
                             bookingForm.reset();
+                            updateTotalPrice();
+                            
+                            // Cuộn lên để thấy thông báo
+                            msgBox.scrollIntoView({behavior: 'smooth'});
                         } else {
                             msgBox.className = "mt-2 text-center small fw-bold text-danger";
                             msgBox.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + data.message;
                         }
                         btn.disabled = false;
-                        btn.innerHTML = 'XÁC NHẬN ĐẶT BÀN';
+                        btn.innerHTML = '✅ XÁC NHẬN ĐẶT BÀN';
                     })
                     .catch(() => {
                         msgBox.className = "mt-2 text-center small fw-bold text-danger";
-                        msgBox.innerHTML = '<i class="fas fa-exclamation-circle"></i> Lỗi kết nối Server!';
+                        msgBox.innerHTML = '<i class="fas fa-exclamation-circle"></i> ❌ Lỗi kết nối Server!';
                         btn.disabled = false;
-                        btn.innerHTML = 'XÁC NHẬN ĐẶT BÀN';
+                        btn.innerHTML = '✅ XÁC NHẬN ĐẶT BÀN';
                     });
                 });
             }

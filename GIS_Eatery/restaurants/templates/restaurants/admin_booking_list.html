@@ -54,6 +54,7 @@
                     <th>Khách hàng</th>
                     <th>Số người</th>
                     <th>Bàn số</th>
+                    <th>🍽️ Các món đã chọn</th>
                     <th>Trạng thái</th>
                     <th class="text-end">Hành động</th>
                 </tr>
@@ -67,6 +68,9 @@
                     </td>
                     <td>
                         <div class="fw-bold">{{ b.customer_name }}</div>
+                        {% if b.customer_phone %}
+                            <small class="text-muted">{{ b.customer_phone }}</small>
+                        {% endif %}
                     </td>
                     <td><span class="badge bg-light text-dark border">{{ b.number_of_people }} người</span></td>
                     <td>
@@ -74,10 +78,29 @@
                         <small class="text-muted">Bàn {{ b.table.table_number }}</small>
                     </td>
                     <td>
+                        {% if b.items.all %}
+                            <div class="small">
+                                {% for item in b.items.all %}
+                                    <div class="mb-1">
+                                        📌 {{ item.dish.name }} x{{ item.quantity }}
+                                        <span class="text-muted">({{ item.quantity|add:0 }}x{{ item.dish.price|floatformat:0 }}đ)</span>
+                                    </div>
+                                {% endfor %}
+                                <div class="fw-bold text-danger mt-1">
+                                    💰 Tổng: {{ b.get_total_price|floatformat:0 }}đ
+                                </div>
+                            </div>
+                        {% else %}
+                            <span class="text-muted small">--</span>
+                        {% endif %}
+                    </td>
+                    <td>
                         {% if b.status == 'pending' %}
                             <span class="badge bg-warning text-dark">⏳ Chờ duyệt</span>
                         {% elif b.status == 'confirmed' %}
                             <span class="badge bg-success">✅ Đã duyệt</span>
+                        {% elif b.status == 'waiting' %}
+                            <span class="badge bg-info">🔄 Hàng chờ #{{ b.queue_position }}</span>
                         {% else %}
                             <span class="badge bg-secondary">❌ Đã hủy</span>
                         {% endif %}

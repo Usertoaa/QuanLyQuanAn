@@ -23,6 +23,7 @@ from .models import (
     Restaurant,
     Table,
     Reservation,
+    ReservationItem,
     Dish,
     Feedback,
     RestaurantImage,
@@ -31,7 +32,31 @@ from .models import (
 )
 
 BOOKING_SLOT_MINUTES = 30
+ADVANCE_BOOKING_MINUTES = 90  # Không được đặt sớm quá 90 phút
 ACTIVE_RESERVATION_STATUSES = ['pending', 'confirmed', 'waiting']
+
+
+def validate_booking_time(requested_time):
+    """
+    Kiểm tra thời gian đặt bàn có hợp lệ không
+    - Không được đặt sớm quá 90 phút
+    - Không được đặt ở quá khứ
+    
+    Returns: (is_valid, error_message)
+    """
+    now = timezone.now()
+    min_booking_time = now + timedelta(minutes=ADVANCE_BOOKING_MINUTES)
+    
+    # Kiểm tra thời gian đặt ở quá khứ
+    if requested_time < now:
+        return False, "⚠️ Thời gian đặt không thể ở quá khứ!"
+    
+    # Kiểm tra đặt sớm quá 90 phút
+    if requested_time < min_booking_time:
+        remaining_minutes = int((min_booking_time - now).total_seconds() / 60)
+        return False, f"⚠️ Vui lòng đặt bàn trễ hơn {ADVANCE_BOOKING_MINUTES} phút. Thời gian sớm nhất có thể: {min_booking_time.strftime('%d/%m/%Y %H:%M')}"
+    
+    return True, ""
 
 
 def get_restaurant_display_image(restaurant):
@@ -353,24 +378,60 @@ def api_nearby_restaurants(request):
 
 @csrf_exempt
 def api_book_table(request):
+    """
+    API đặt bàn với các tính năng:
+    - Chọn bàn theo số người
+    - Chọn các món ăn (tùy chọn)
+    - Kiểm tra bàn trống
+    - Kiểm tra quy định không đặt sớm quá 90 phút
+    - Hỗ trợ hàng chờ nếu bàn bận
+    
+    Expected POST parameters:
+    - restaurant_id: ID nhà hàng
+    - name: Tên khách hàng
+    - phone: Số điện thoại (tùy chọn)
+    - booking_time: Thời gian đặt (YYYY-MM-DD HH:MM hoặc ISO format)
+    - people: Số người (mặc định 4)
+    - dish_ids[]: Danh sách ID các món ăn (tùy chọn)
+    - quantities[]: Số lượng từng món (tùy chọn)
+    - note: Ghi chú (tùy chọn)
+    """
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Yêu cầu không hợp lệ'})
 
     try:
         restaurant_id = request.POST.get('restaurant_id')
-        customer_name = request.POST.get('name')
+        customer_name = request.POST.get('name', '').strip()
+        customer_phone = request.POST.get('phone', '').strip()
         booking_time_str = request.POST.get('time') or request.POST.get('booking_time')
         people = int(request.POST.get('people', 4))
+        note = request.POST.get('note', '').strip()
 
+        # Validation
+        if not customer_name:
+            return JsonResponse({'status': 'error', 'message': 'Vui lòng nhập tên khách hàng!'}, status=400)
+        
+        if people < 1 or people > 20:
+            return JsonResponse({'status': 'error', 'message': 'Số người phải từ 1 đến 20!'}, status=400)
+
+        # Lấy nhà hàng
         restaurant = Restaurant.objects.get(id=restaurant_id)
 
+        # Tạo bàn mặc định nếu chưa có
         if not restaurant.tables.exists():
             create_default_tables_for_restaurant(restaurant)
 
+        # Parse thời gian
         requested_time = parse_user_datetime(booking_time_str)
         if requested_time is None:
-            return JsonResponse({'status': 'error', 'message': 'Thời gian đặt bàn không hợp lệ.'})
+            return JsonResponse({'status': 'error', 'message': 'Thời gian đặt bàn không hợp lệ.'}, status=400)
 
+        # ✅ Kiểm tra quy định 90 phút
+        is_valid_time, error_msg = validate_booking_time(requested_time)
+        if not is_valid_time:
+            return JsonResponse({'status': 'error', 'message': error_msg}, status=400)
+
+        # ✅ Tìm bàn trống phù hợp
         best_table, available_from = find_best_table_for_booking(
             restaurant=restaurant,
             people=people,
@@ -380,9 +441,10 @@ def api_book_table(request):
         if best_table is None:
             return JsonResponse({
                 'status': 'error',
-                'message': 'Không có bàn phù hợp với số lượng khách này.'
-            })
+                'message': '❌ Không có bàn phù hợp với số lượng khách này. Vui lòng chọn thời gian khác!'
+            }, status=400)
 
+        # Kiểm tra có phải hàng chờ không
         is_waiting = available_from > requested_time
         queue_position = 0
 
@@ -393,11 +455,14 @@ def api_book_table(request):
                 status='waiting'
             ).count() + 1
 
+        # Tạo đơn đặt bàn
         reservation = Reservation(
             table=best_table,
             customer_name=customer_name,
+            customer_phone=customer_phone,
             booking_time=available_from,
             number_of_people=people,
+            note=note,
             status='waiting' if is_waiting else 'pending',
             queue_position=queue_position
         )
@@ -407,26 +472,71 @@ def api_book_table(request):
 
         reservation.save()
 
+        # ✅ Xử lý thêm các món ăn (ReservationItem)
+        dish_ids = request.POST.getlist('dish_ids[]')
+        quantities = request.POST.getlist('quantities[]')
+        total_price = 0
+
+        if dish_ids:
+            for index, dish_id in enumerate(dish_ids):
+                try:
+                    qty = max(1, int(quantities[index])) if index < len(quantities) else 1
+                except (ValueError, TypeError):
+                    qty = 1
+
+                # Lấy món ăn
+                dish = Dish.objects.filter(
+                    id=dish_id,
+                    restaurant=restaurant,
+                    is_available=True
+                ).first()
+
+                if dish:
+                    # Tạo ReservationItem
+                    reservation_item, created = ReservationItem.objects.get_or_create(
+                        reservation=reservation,
+                        dish=dish,
+                        defaults={'quantity': qty}
+                    )
+                    if not created:
+                        reservation_item.quantity = qty
+                        reservation_item.save()
+                    
+                    total_price += dish.price * qty
+
+        # Gửi email xác nhận (nếu có email)
+        if customer_phone or (request.user.is_authenticated and request.user.email):
+            try:
+                send_booking_confirmation_email(reservation)
+            except Exception as e:
+                print(f"Lỗi gửi email đặt bàn: {e}")
+
+        # Phản hồi thành công
         if is_waiting:
-            return JsonResponse({
-                'status': 'success',
-                'booking_type': 'waiting',
-                'message': (
-                    f'Hiện đã hết bàn đúng giờ bạn chọn. '
-                    f'Bạn được đưa vào hàng chờ tại {best_table.table_number} '
-                    f'lúc {available_from.strftime("%d/%m/%Y %H:%M")}. '
-                    f'Số thứ tự chờ: {queue_position}.'
-                )
-            })
+            message = (
+                f"✅ Hiện đã hết bàn đúng giờ bạn chọn. "
+                f"Bạn được đưa vào hàng chờ tại {best_table.table_number} "
+                f"lúc {available_from.strftime('%d/%m/%Y %H:%M')}. "
+                f"Số thứ tự chờ: {queue_position}."
+            )
+            booking_type = 'waiting'
+        else:
+            message = f"✅ Thành công! Đơn đặt tại {restaurant.name} đang chờ duyệt."
+            booking_type = 'normal'
 
         return JsonResponse({
             'status': 'success',
-            'booking_type': 'normal',
-            'message': f'Thành công! Đơn đặt tại {restaurant.name} đang chờ duyệt.'
+            'booking_type': booking_type,
+            'reservation_id': reservation.id,
+            'message': message,
+            'total_price': int(total_price),
+            'items_count': len([d for d in dish_ids if d])
         })
 
+    except Restaurant.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Nhà hàng không tồn tại!'}, status=404)
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': 'Lỗi server: ' + str(e)})
+        return JsonResponse({'status': 'error', 'message': f'❌ Lỗi server: {str(e)}'}, status=500)
 
 
 @csrf_exempt
@@ -932,6 +1042,102 @@ def send_feedback_confirmation_email(feedback):
         html_message=html_message,
         fail_silently=False,
     )
+
+
+def send_booking_confirmation_email(reservation):
+    """Gửi email xác nhận đặt bàn cho khách hàng"""
+    subject = f"✅ Xác nhận đặt bàn - {reservation.table.restaurant.name}"
+    
+    # Lấy danh sách các món đã chọn
+    items_html = ""
+    if reservation.items.exists():
+        items_html = "<h4>Các món đã chọn:</h4><div style='background-color: #f5f5f5; padding: 15px; border-radius: 4px;'><table style='width: 100%;'>"
+        items_html += "<tr style='border-bottom: 1px solid #ddd;'><th style='text-align: left; padding: 5px;'>Món ăn</th><th style='text-align: center; padding: 5px;'>SL</th><th style='text-align: right; padding: 5px;'>Giá</th></tr>"
+        
+        total_price = 0
+        for item in reservation.items.all():
+            subtotal = item.quantity * item.dish.price
+            total_price += subtotal
+            items_html += f"<tr style='border-bottom: 1px solid #eee;'>"
+            items_html += f"<td style='padding: 8px;'>{item.dish.name}</td>"
+            items_html += f"<td style='text-align: center; padding: 8px;'>{item.quantity}</td>"
+            items_html += f"<td style='text-align: right; padding: 8px;'>{int(subtotal):,} ₫</td>"
+            items_html += f"</tr>"
+        
+        items_html += f"<tr style='font-weight: bold;'><td colspan='2' style='text-align: right; padding: 10px;'>Tổng cộng:</td><td style='text-align: right; padding: 10px;'>{int(total_price):,} ₫</td></tr>"
+        items_html += "</table></div>"
+
+    status_text = "🔄 Hàng chờ" if reservation.status == 'waiting' else "⏳ Chờ duyệt"
+    
+    html_message = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+                <div style="background-color: #007bff; color: white; padding: 20px; text-align: center;">
+                    <h2 style="margin: 0;">✅ Đơn đặt bàn của bạn</h2>
+                </div>
+
+                <div style="padding: 20px;">
+                    <p>Xin chào <strong>{reservation.customer_name}</strong>,</p>
+                    <p>Cảm ơn bạn đã đặt bàn tại quán ăn <strong>{reservation.table.restaurant.name}</strong>!</p>
+
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+
+                    <h4>📋 Thông tin đặt bàn:</h4>
+                    <div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #007bff; border-radius: 4px;">
+                        <p><strong>Quán ăn:</strong> {reservation.table.restaurant.name}</p>
+                        <p><strong>Bàn:</strong> {reservation.table.table_number}</p>
+                        <p><strong>Thời gian:</strong> {reservation.booking_time.strftime('%d/%m/%Y %H:%M')}</p>
+                        <p><strong>Số người:</strong> {reservation.number_of_people} người</p>
+                        <p><strong>Trạng thái:</strong> {status_text}</p>
+                        <p><strong>Mã đơn:</strong> #{reservation.id}</p>
+                        {f'<p><strong>Vị trí hàng chờ:</strong> #{reservation.queue_position}</p>' if reservation.status == 'waiting' else ''}
+                    </div>
+
+                    {items_html}
+
+                    {f'<p style="color: #dc3545; font-weight: bold;">💡 Bạn đang ở hàng chờ. Chúng tôi sẽ thông báo cho bạn khi có bàn trống.</p>' if reservation.status == 'waiting' else ''}
+
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+
+                    <p style="color: #666; font-size: 14px;">
+                        Nếu bạn cần thay đổi hoặc hủy đặt bàn, vui lòng liên hệ với chúng tôi sớm nhất.
+                    </p>
+
+                    <div style="text-align: center; margin: 20px 0;">
+                        <p style="color: #999; font-size: 13px;">
+                            Địa chỉ: {reservation.table.restaurant.address}<br>
+                            Quận/Huyện: {reservation.table.restaurant.get_district_display()}
+                        </p>
+                    </div>
+                </div>
+
+                <div style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666;">
+                    <p>GIS Eatery © 2026 | Hệ thống quản lý quán ăn</p>
+                    <p>Email này được gửi tự động, vui lòng không trả lời email này.</p>
+                </div>
+            </div>
+        </body>
+    </html>
+    """
+
+    plain_message = strip_tags(html_message)
+    
+    # Lấy email khách hàng
+    recipient_email = None
+    if reservation.user and reservation.user.email:
+        recipient_email = reservation.user.email
+    
+    # Chỉ gửi email nếu có email hợp lệ
+    if recipient_email:
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email='noreply@giseatery.com',
+            recipient_list=[recipient_email],
+            html_message=html_message,
+            fail_silently=False,
+        )
 
 
 @require_GET
