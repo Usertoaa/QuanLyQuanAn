@@ -9,8 +9,8 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
-    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
@@ -278,6 +278,9 @@
                 <button class="btn-use-gps" onclick="useGPSLocation()">
                     <i class="fas fa-location-dot"></i> Dùng vị trí GPS
                 </button>
+                <button id="btnPinLocation" class="btn-use-gps" style="background: #ff9800; margin-top: 6px;" onclick="togglePinMode()">
+                    <i class="fas fa-map-marker-alt"></i> <span id="pinModeText">Ghim vị trí trên bản đồ</span>
+                </button>
             </div>
 
             <!-- Section tìm kiếm -->
@@ -328,6 +331,7 @@
     var routingControl = null; // Biến lưu đường đi
     var restaurantMarker = null; // Biến lưu marker quán ăn
     var userLat = null, userLng = null;
+    var isPinMode = false; // Chế độ ghim vị trí
 
     // 2. Lấy vị trí người dùng (GPS trình duyệt)
     map.locate({setView: true, maxZoom: 14});
@@ -478,6 +482,52 @@
         map.locate({setView: true, maxZoom: 14});
     }
 
+    // 5A. Chế độ ghim vị trí trên bản đồ
+    function togglePinMode() {
+        isPinMode = !isPinMode;
+        const btnPinLocation = document.getElementById('btnPinLocation');
+        const pinModeText = document.getElementById('pinModeText');
+        
+        if (isPinMode) {
+            btnPinLocation.style.background = '#4caf50'; // Xanh lá cây
+            pinModeText.textContent = 'Đang chế độ ghim - Click trên bản đồ';
+            document.getElementById('status').innerHTML = `<i class='fas fa-map-marker-alt' style='color:#4caf50;'></i> Nhấp vào vị trí trên bản đồ để ghim`;
+            map.style.cursor = 'crosshair';
+        } else {
+            btnPinLocation.style.background = '#ff9800'; // Cam
+            pinModeText.textContent = 'Ghim vị trí trên bản đồ';
+            document.getElementById('status').innerHTML = `<i class='fas fa-info-circle'></i> Tắt chế độ ghim vị trí`;
+            map.style.cursor = 'grab';
+        }
+    }
+
+    // 5B. Xử lý click trên bản đồ để ghim vị trí
+    map.on('click', function(e) {
+        if (!isPinMode) return;
+        
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
+        
+        userLat = lat;
+        userLng = lng;
+        
+        // Cập nhật marker người dùng
+        if (userMarker) map.removeLayer(userMarker);
+        userMarker = L.marker([userLat, userLng], {
+            icon: L.divIcon({
+                className: 'user-icon',
+                html: '<i class="fas fa-map-pin" style="font-size:32px; color:#4caf50; text-shadow: 0 0 3px rgba(0,0,0,0.3);"></i>',
+                iconSize: [32, 32],
+                iconAnchor: [16, 32]
+            })
+        }).addTo(map).bindPopup(`📍 Vị trí đã ghim: ${lat.toFixed(4)}, ${lng.toFixed(4)}`).openPopup();
+        
+        document.getElementById('status').innerHTML = `<i class='fas fa-check-circle' style='color:#4caf50;'></i> Đã ghim vị trí!`;
+        
+        // Tắt chế độ ghim sau khi chọn
+        togglePinMode();
+    });
+
     // 6. Hàm QUÉT QUÁN ĂN (Radius Search)
     function scanNearby() {
         if (!userLat) return alert("Chưa có vị trí của bạn!");
@@ -544,25 +594,47 @@
             .catch(err => console.error(err));
     }
 
-    // 7. Hàm CHỈ ĐƯỜNG (Routing)
+    // 7. Hàm CHỈ ĐƯỜNG (Routing) - Sử dụng OSRM
     function getDirections(destLat, destLng) {
         if (!userLat) return alert("Cần vị trí của bạn để chỉ đường!");
         if (routingControl) {
             map.removeControl(routingControl);
         }
-        routingControl = L.Routing.control({
-            waypoints: [
-                L.latLng(userLat, userLng),
-                L.latLng(destLat, destLng)
-            ],
-            routeWhileDragging: false,
-            language: 'vi',
-            showAlternatives: false,
-            lineOptions: {
-                styles: [{color: 'blue', opacity: 0.6, weight: 5}]
-            },
-            createMarker: function() { return null; }
-        }).addTo(map);
+        
+        try {
+            routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(userLat, userLng),
+                    L.latLng(destLat, destLng)
+                ],
+                router: L.Routing.osrmv1({
+                    serviceUrl: 'https://router.project-osrm.org/route/v1',
+                    profile: 'car'
+                }),
+                routeWhileDragging: false,
+                showAlternatives: false,
+                lineOptions: {
+                    styles: [{color: '#0066ff', opacity: 0.7, weight: 6}]
+                },
+                createMarker: function() { return null; },
+                fitSelectedRoutes: true,
+                altLineOptions: {
+                    styles: [{color: '#bbb', opacity: 0.5, weight: 5}]
+                },
+                summaryTemplate: '<div class="routing-summary"><b>{distance}</b> | <b>{time}</b></div>'
+            }).addTo(map);
+            
+            // Xử lý lỗi
+            routingControl.on('routingerror', function(e) {
+                console.error('❌ Lỗi tính toán tuyến đường:', e.error);
+                alert('⚠️ Không thể tính tuyến đường. Vui lòng kiểm tra kết nối mạng!');
+            });
+            
+        } catch (error) {
+            console.error('❌ Lỗi khi gọi routing:', error);
+            alert('❌ Có lỗi xảy ra. Vui lòng thử lại!');
+        }
+        
         document.getElementById('stopRoutingBtn').style.display = 'block';
         map.closePopup();
     }
@@ -574,6 +646,16 @@
         }
         document.getElementById('stopRoutingBtn').style.display = 'none';
     }
+
+    // Thêm event listener cho routing errors
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+            if (window.L && window.L.Routing) {
+                // Kiểm tra xem routing engine có hoạt động không
+                console.log('✅ Leaflet Routing Machine đã được tải thành công');
+            }
+        }, 1000);
+    });
 
     function showMarkerPopup(id) {
         if (window._popupMarkerMap && window._popupMarkerMap[id]) {
