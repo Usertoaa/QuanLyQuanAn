@@ -1,4 +1,5 @@
 {% extends 'restaurants/base_admin.html' %}
+{% load custom_filters %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -79,14 +80,83 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label class="fw-bold text-danger">Vị trí (Kéo thả để chỉnh):</label>
-                            <div id="map-picker" style="height: 300px; border: 1px solid #ddd;"></div>
+                            <div class="mb-3">
+                                <label>Mô tả ngắn:</label>
+                                <textarea name="description" class="form-control" rows="3" placeholder="Mô tả ngắn về quán (tối đa 500 ký tự)">{{ restaurant.description|default:'' }}</textarea>
+                                <small class="text-muted">Dùng cho danh sách quán.</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label>Mô tả dài:</label>
+                                <textarea name="long_description" class="form-control" rows="5" placeholder="Mô tả chi tiết: lịch sử quán, phong cách ẩm thực, các đặc biệt, giờ hoạt động, v.v.">{{ restaurant.long_description|default:'' }}</textarea>
+                                <small class="text-muted">Sẽ hiển thị ở trang chi tiết quán.</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AMENITIES SECTION -->
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="fw-bold text-danger mb-0">
+                                    <i class="fas fa-star"></i> Tiện Ích Quán
+                                </h5>
+                                <div style="max-width: 250px;">
+                                    <input type="text" id="amenity-search" class="form-control form-control-sm" 
+                                           placeholder="Tìm tiện ích..." onkeyup="filterAmenities()">
+                                </div>
+                            </div>
+                            <div class="row" id="amenity-grid">
+                                {% for category in amenity_categories %}
+                                <div class="col-md-6 col-lg-4 mb-3 amenity-card" data-amenity-name="{{ category.name|lower }}">
+                                    <div class="card h-100 border-0 shadow-sm">
+                                        <div class="card-body">
+                                            <div class="form-check form-switch mb-2">
+                                                <input class="form-check-input amenity-checkbox" 
+                                                       type="checkbox" 
+                                                       name="amenities" 
+                                                       value="{{ category.id }}"
+                                                       id="amenity_{{ category.id }}"
+                                                       data-amenity-id="{{ category.id }}"
+                                                       {% if category.id in restaurant_amenity_ids %}checked{% endif %}>
+                                                <label class="form-check-label fw-bold" for="amenity_{{ category.id }}">
+                                                    <i class="{{ category.icon }} text-danger"></i> {{ category.name }}
+                                                </label>
+                                            </div>
+                            <textarea class="form-control form-control-sm amenity-notes" 
+                                                      name="amenity_notes_{{ category.id }}" 
+                                                      placeholder="Ghi chú (tuỳ chọn)"
+                                                      rows="2"
+                                                      style="font-size: 0.875rem;">{{ amenity_notes|get_item:category.id|default:'' }}</textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% empty %}
+                                <div class="col-md-12">
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-exclamation-triangle"></i> Chưa có tiện ích nào được tạo. Vui lòng liên hệ quản trị viên.
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <label class="fw-bold text-danger">Vị trí quán (Kéo thả để chỉnh):</label>
+                            <div id="map-picker" style="height: 350px; border: 1px solid #ddd;"></div>
 
                             <input type="hidden" name="lat" id="lat" value="{{ restaurant.location.y|default:'' }}" required>
                             <input type="hidden" name="lng" id="lng" value="{{ restaurant.location.x|default:'' }}" required>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-danger w-100 mt-3 py-2 fw-bold">LƯU DỮ LIỆU</button>
+
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <button type="submit" class="btn btn-danger w-100 py-2 fw-bold">LƯU DỮ LIỆU</button>
+                        </div>
+                    </div>
                 </form>
             </div>
         </div>
@@ -449,5 +519,22 @@
         updateMarker(e.latlng.lat, e.latlng.lng, 18);
         reverseGeocode(e.latlng.lat, e.latlng.lng);
     });
+
+    // ============================================
+    // AMENITY FILTER
+    // ============================================
+    function filterAmenities() {
+        const searchTerm = document.getElementById('amenity-search').value.toLowerCase();
+        const amenityCards = document.querySelectorAll('.amenity-card');
+        
+        amenityCards.forEach(card => {
+            const amenityName = card.getAttribute('data-amenity-name');
+            if (amenityName.includes(searchTerm)) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
 </script>
 {% endblock %}

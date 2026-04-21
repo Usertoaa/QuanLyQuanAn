@@ -1,5 +1,5 @@
 from django.contrib.gis import admin
-from .models import Dish, Restaurant, Table, Reservation, ReservationItem
+from .models import Dish, Restaurant, Table, Reservation, ReservationItem, AmenityCategory, RestaurantAmenity
 
 
 class DishInline(admin.TabularInline):
@@ -13,13 +13,18 @@ class ReservationItemInline(admin.TabularInline):
     readonly_fields = ('created_at',)
 
 
+class RestaurantAmenityInline(admin.TabularInline):
+    model = RestaurantAmenity
+    extra = 1
+
+
 @admin.register(Restaurant)
 class RestaurantAdmin(admin.GISModelAdmin):
    list_display = ('name', 'address', 'district', 'created_at')
    search_fields = ('name', 'address')
    list_filter = ('district',)
     
-   inlines = [DishInline]
+   inlines = [DishInline, RestaurantAmenityInline]
 
 @admin.register(Table)
 class TableAdmin(admin.ModelAdmin):
@@ -51,8 +56,36 @@ class ReservationItemAdmin(admin.ModelAdmin):
     
     def get_reservation_customer(self, obj):
         return f"{obj.reservation.customer_name} - {obj.reservation.table.restaurant.name}"
-    get_reservation_customer.short_description = 'Đơn của'
-    
-    def get_subtotal(self, obj):
-        return f"{obj.get_subtotal():,}đ"
-    get_subtotal.short_description = 'Thành tiền'
+    get_reservation_customer.short_description = 'Khách / Quán'
+
+
+@admin.register(AmenityCategory)
+class AmenityCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'icon', 'order')
+    list_editable = ('order',)
+    list_filter = ('order',)
+    search_fields = ('name',)
+    fieldsets = (
+        ('Thông tin', {
+            'fields': ('name', 'icon', 'order')
+        }),
+        ('Chi tiết', {
+            'fields': ('description',),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(RestaurantAmenity)
+class RestaurantAmenityAdmin(admin.ModelAdmin):
+    list_display = ('restaurant', 'category', 'is_available', 'note')
+    list_filter = ('category', 'is_available', 'restaurant')
+    search_fields = ('restaurant__name', 'category__name')
+    fieldsets = (
+        ('Thông tin', {
+            'fields': ('restaurant', 'category', 'is_available')
+        }),
+        ('Ghi chú', {
+            'fields': ('note',)
+        }),
+    )

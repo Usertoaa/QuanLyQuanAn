@@ -29,7 +29,13 @@ class Restaurant(models.Model):
         choices=DISTRICT_CHOICES,
         verbose_name="Quận/Huyện"
     )
-    description = models.TextField(blank=True, null=True, verbose_name="Mô tả")
+    description = models.TextField(blank=True, null=True, verbose_name="Mô tả ngắn")
+    long_description = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name="Mô tả dài",
+        help_text="Mô tả chi tiết về quán: lịch sử, phong cách, đặc biệt, giờ hoạt động, v.v."
+    )
     image = models.ImageField(
         upload_to='restaurant_images/',
         blank=True,
@@ -364,3 +370,67 @@ class PasswordResetToken(models.Model):
 
     def __str__(self):
         return f"Reset token - {self.user.username}"
+
+
+class AmenityCategory(models.Model):
+    """Danh mục tiện ích (Wifi, Máy lạnh, Giữ xe, v.v.)"""
+    name = models.CharField(
+        max_length=100, 
+        unique=True,
+        verbose_name="Tên danh mục"
+    )
+    icon = models.CharField(
+        max_length=50,
+        help_text="Font Awesome icon class (vd: fas fa-wifi)",
+        verbose_name="Icon"
+    )
+    description = models.TextField(
+        blank=True,
+        verbose_name="Mô tả"
+    )
+    order = models.IntegerField(
+        default=0,
+        verbose_name="Thứ tự hiển thị"
+    )
+
+    class Meta:
+        ordering = ['order', 'name']
+        verbose_name = "Danh mục tiện ích"
+        verbose_name_plural = "Danh mục tiện ích"
+
+    def __str__(self):
+        return self.name
+
+
+class RestaurantAmenity(models.Model):
+    """Tiện ích của từng quán ăn"""
+    restaurant = models.ForeignKey(
+        Restaurant,
+        on_delete=models.CASCADE,
+        related_name='amenities',
+        verbose_name="Quán ăn"
+    )
+    category = models.ForeignKey(
+        AmenityCategory,
+        on_delete=models.CASCADE,
+        related_name='restaurant_amenities',
+        verbose_name="Danh mục tiện ích"
+    )
+    is_available = models.BooleanField(
+        default=True,
+        verbose_name="Có sẵn"
+    )
+    note = models.TextField(
+        blank=True,
+        verbose_name="Ghi chú",
+        help_text="Vd: Wifi 24h, Máy lạnh từ 10:00 - 23:00, v.v."
+    )
+
+    class Meta:
+        unique_together = ('restaurant', 'category')
+        ordering = ['category__order']
+        verbose_name = "Tiện ích quán ăn"
+        verbose_name_plural = "Tiện ích quán ăn"
+
+    def __str__(self):
+        return f"{self.restaurant.name} - {self.category.name}"

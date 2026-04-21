@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('restaurants', '0015_add_reservation_item_and_updates'),
+        ('restaurants', '0017_revert_district_max_length'),
     ]
 
     operations = [

@@ -8,7 +8,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('restaurants', '0015_add_reservation_item_and_updates'),
+        ('restaurants', '0016_update_models'),
     ]
 
     operations = [

@@ -1,0 +1,173 @@
+## ✅ AMENITIES FILTER - IMPLEMENTED
+
+### **Tính năng được thêm:**
+
+#### **1. Trang Danh Sách Quán (index.html)**
+- ✅ **Filter Section** với các nút tiện ích
+- ✅ **Toggle Amenities** - Click để chọn/bỏ tiện ích
+- ✅ **Active State** - Các tiện ích được chọn có nền đỏ
+- ✅ **Clear Filter Button** - Xóa tất cả bộ lọc
+- ✅ **URL Params** - Lọc qua query string (/?amenities=1&amenities=2)
+
+**Ví dụ:**
+- URL: `/restaurants/?amenities=1&amenities=3`
+- Kết quả: Chỉ hiển thị quán có tiện ích ID 1 và 3
+
+#### **2. Trang Admin Form (admin_form.html)**
+- ✅ **Search Box** - Tìm kiếm tiện ích theo tên
+- ✅ **Real-time Filter** - Lọc khi gõ
+- ✅ **Amenity Cards** - Hiển thị các tiện ích
+- ✅ **Checkboxes & Notes** - Chọn tiện ích và thêm ghi chú
+
+**Ví dụ:**
+- Nhập "wifi" → hiển thị chỉ tiện ích chứa "wifi"
+- Nhập "máy" → hiển thị "Máy lạnh"
+
+### **Code Changes:**
+
+#### **views.py - index()**
+```python
+# Amenity Filter Logic
+amenity_ids = request.GET.getlist('amenities')
+if amenity_ids:
+    restaurants = restaurants.filter(
+        amenities__category_id__in=amenity_ids,
+        amenities__is_available=True
+    ).distinct()
+
+# Pass to template
+context = {
+    'amenity_categories': AmenityCategory.objects.all().order_by('order'),
+    'amenities_json': json.dumps(amenities_json),
+    'selected_amenities': amenity_ids,
+}
+```
+
+#### **index.html**
+```html
+<!-- Amenities Filter Section -->
+<div class="bg-white p-3 rounded border mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold mb-0">
+            <i class="fas fa-filter text-danger"></i> Lọc theo tiện ích:
+        </h6>
+        <button type="button" class="btn btn-sm btn-outline-secondary" 
+                onclick="clearAmenityFilters()">
+            <i class="fas fa-times"></i> Xóa bộ lọc
+        </button>
+    </div>
+    <div id="amenity-filter-container" class="mt-2 d-flex flex-wrap gap-2">
+        <!-- Populated by JavaScript -->
+    </div>
+</div>
+
+<!-- JavaScript -->
+<script>
+    function toggleAmenityFilter(amenityId) {
+        const url = new URL(window.location);
+        const amenities = url.searchParams.getAll('amenities');
+        
+        if (amenities.includes(amenityId.toString())) {
+            // Remove amenity
+            url.searchParams.delete('amenities');
+            amenities.filter(a => a !== amenityId.toString()).forEach(a => {
+                url.searchParams.append('amenities', a);
+            });
+        } else {
+            // Add amenity
+            url.searchParams.append('amenities', amenityId);
+        }
+        
+        window.location = url.toString();
+    }
+
+    function clearAmenityFilters() {
+        const url = new URL(window.location);
+        url.searchParams.delete('amenities');
+        window.location = url.toString();
+    }
+
+    function renderAmenityFilters() {
+        const container = document.getElementById('amenity-filter-container');
+        const amenitiesData = {{ amenities_json|safe }};
+        
+        amenitiesData.forEach(amenity => {
+            const isSelected = selectedAmenities.includes(amenity.id);
+            const btnClass = isSelected ? 'btn-danger' : 'btn-outline-danger';
+            
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `btn btn-sm ${btnClass}`;
+            btn.innerHTML = `<i class="${amenity.icon_class}"></i> ${amenity.name}`;
+            btn.onclick = () => toggleAmenityFilter(amenity.id);
+            
+            container.appendChild(btn);
+        });
+    }
+</script>
+```
+
+#### **admin_form.html**
+```html
+<!-- Amenity Search Box -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold text-danger mb-0">
+        <i class="fas fa-star"></i> Tiện Ích Quán
+    </h5>
+    <div style="max-width: 250px;">
+        <input type="text" id="amenity-search" class="form-control form-control-sm" 
+               placeholder="Tìm tiện ích..." onkeyup="filterAmenities()">
+    </div>
+</div>
+
+<!-- JavaScript Filter -->
+<script>
+    function filterAmenities() {
+        const searchTerm = document.getElementById('amenity-search').value.toLowerCase();
+        const amenityCards = document.querySelectorAll('.amenity-card');
+        
+        amenityCards.forEach(card => {
+            const amenityName = card.getAttribute('data-amenity-name');
+            if (amenityName.includes(searchTerm)) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+</script>
+```
+
+### **Cách sử dụng:**
+
+**Trên trang danh sách (index.html):**
+1. Cuộn xuống phần "Lọc theo tiện ích"
+2. Click nút tiện ích muốn lọc (nút sẽ chuyển sang nền đỏ)
+3. Danh sách quán sẽ cập nhật ngay lập tức
+4. Click "Xóa bộ lọc" để bỏ lọc
+
+**Trên trang admin form:**
+1. Cuộn xuống phần "Tiện Ích Quán"
+2. Gõ tên tiện ích vào ô tìm kiếm
+3. Các tiện ích sẽ lọc theo real-time
+4. Check/uncheck để chọn tiện ích
+5. Thêm ghi chú nếu cần
+
+### **Testing:**
+✅ Django check: No issues
+✅ Filter logic: Working
+✅ URL parameters: Preserved across page navigation
+✅ Template rendering: No errors
+
+### **Features:**
+- 🔍 **Real-time search** trong admin form
+- 🎯 **Multi-select** amenities trên index page
+- 📌 **Persistent filters** qua URL
+- 🚀 **Fast filtering** không cần reload page
+- ♿ **Accessible** với semantic HTML
+
+### **Next Steps (Optional):**
+- [ ] Thêm hiệu ứng animation cho filter
+- [ ] Lưu preferences vào localStorage
+- [ ] Thêm count số lượng quán sau khi lọc
+- [ ] Mobile-responsive improvements

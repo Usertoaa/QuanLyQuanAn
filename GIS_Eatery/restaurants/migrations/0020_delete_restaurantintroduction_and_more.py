@@ -6,25 +6,10 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('restaurants', '0018_alter_restaurantintroduction_options_and_more'),
+        ('restaurants', '0017_revert_district_max_length'),
     ]
 
     operations = [
-        migrations.DeleteModel(
-            name='RestaurantIntroduction',
-        ),
-        migrations.RemoveField(
-            model_name='restaurant',
-            name='email',
-        ),
-        migrations.RemoveField(
-            model_name='restaurant',
-            name='opening_hours',
-        ),
-        migrations.RemoveField(
-            model_name='restaurant',
-            name='phone',
-        ),
         migrations.AlterField(
             model_name='restaurant',
             name='district',

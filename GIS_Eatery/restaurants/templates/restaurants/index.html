@@ -104,6 +104,67 @@
             <i class="fas fa-spinner fa-spin"></i> Đang định vị và tìm quán quanh bạn...
         </div>
 
+        <!-- AMENITIES FILTER -->
+        <div class="bg-white p-3 rounded border mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0">
+                    <i class="fas fa-filter text-danger"></i> Lọc theo tiện ích:
+                </h6>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearAmenityFilters()">
+                    <i class="fas fa-times"></i> Xóa bộ lọc
+                </button>
+            </div>
+            <div id="amenity-filter-container" class="mt-2 d-flex flex-wrap gap-2">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <script>
+            // Initialize amenity filters immediately
+            const selectedAmenities = [{% for id in selected_amenities %}{{ id }},{% endfor %}];
+            const amenitiesData = {{ amenities_json|safe }};
+
+            (function() {
+                const container = document.getElementById('amenity-filter-container');
+                if (container && amenitiesData && amenitiesData.length > 0) {
+                    amenitiesData.forEach(amenity => {
+                        const isSelected = selectedAmenities.includes(amenity.id);
+                        const btnClass = isSelected ? 'btn-danger' : 'btn-outline-danger';
+                        
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = `btn btn-sm ${btnClass}`;
+                        btn.innerHTML = `<i class="${amenity.icon}"></i> ${amenity.name}`;
+                        btn.onclick = () => toggleAmenityFilter(amenity.id);
+                        
+                        container.appendChild(btn);
+                    });
+                }
+            })();
+
+            function toggleAmenityFilter(amenityId) {
+                const url = new URL(window.location);
+                const amenities = url.searchParams.getAll('amenities');
+
+                if (amenities.includes(amenityId.toString())) {
+                    url.searchParams.delete('amenities');
+                    amenities.filter(a => a !== amenityId.toString()).forEach(a => {
+                        url.searchParams.append('amenities', a);
+                    });
+                } else {
+                    url.searchParams.append('amenities', amenityId);
+                }
+
+                window.location = url.toString();
+            }
+
+            function clearAmenityFilters() {
+                const url = new URL(window.location);
+                url.searchParams.delete('amenities');
+                window.location = url.toString();
+            }
+        </script>
+
         <div id="restaurant-grid" class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4 mb-5">
             {% block content %}
             {% for r in restaurants %}
@@ -124,6 +185,11 @@
                         <p class="res-address text-truncate mb-1 text-muted small">
                             <i class="fas fa-map-marker-alt text-danger"></i> {{ r.address }}
                         </p>
+                        {% if r.description %}
+                        <p class="text-muted small mb-2" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                            {{ r.description }}
+                        </p>
+                        {% endif %}
                         <div class="d-flex justify-content-between align-items-center mt-2">
                             <span class="badge bg-light text-secondary border">{{ r.get_district_display }}</span>
                         </div>
@@ -421,5 +487,6 @@
             }
         }
     </script>
+
 </body>
 </html>

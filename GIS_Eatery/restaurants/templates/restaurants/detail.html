@@ -175,9 +175,24 @@
                     {% endif %}
 
                     <div class="mt-3 text-secondary d-flex gap-3 flex-wrap">
-                        <span><i class="fas fa-wifi"></i> Free Wifi</span>
-                        <span><i class="fas fa-snowflake"></i> Máy lạnh</span>
-                        <span><i class="fas fa-parking"></i> Giữ xe</span>
+                        {% for amenity in restaurant.amenities.all %}
+                            {% if amenity.is_available %}
+                            <span title="{{ amenity.category.description }}">
+                                <i class="{{ amenity.category.icon }}"></i> {{ amenity.category.name }}
+                                {% if amenity.note %}<small class="text-muted">({{ amenity.note }})</small>{% endif %}
+                            </span>
+                            {% endif %}
+                        {% empty %}
+                        <span class="text-muted"><i class="fas fa-info-circle"></i> Chưa cập nhật tiện ích</span>
+                        {% endfor %}
+                    </div>
+
+                    {% if restaurant.long_description %}
+                    <div class="mt-4 p-4 bg-light rounded border-start border-4 border-danger">
+                        <h5 class="fw-bold mb-3"><i class="fas fa-info-circle text-danger"></i> Về Quán Ăn</h5>
+                        <p class="text-secondary" style="line-height: 1.8; white-space: pre-wrap;">{{ restaurant.long_description }}</p>
+                    </div>
+                    {% endif %}
                         <span><i class="fas fa-credit-card"></i> Thẻ</span>
                     </div>
                 </div>

@@ -38,6 +38,8 @@ from .models import (
     PickupOrderItem,
     UserProfile,
     PasswordResetToken,
+    AmenityCategory,
+    RestaurantAmenity,
 )
 from .forms import CustomUserCreationForm, CustomSetPasswordForm, DishImportForm
 from .import_dishes_from_excel import DishImportHandler
@@ -221,14 +223,31 @@ def index(request):
     if sort == 'cheap':
         restaurants = restaurants.order_by('min_price', '-created_at')
 
+    # ============================================
+    # AMENITY FILTER
+    # ============================================
+    amenity_ids = request.GET.getlist('amenities')
+    if amenity_ids:
+        restaurants = restaurants.filter(
+            amenities__category_id__in=amenity_ids,
+            amenities__is_available=True
+        ).distinct()
+
     for restaurant in restaurants:
         restaurant.display_image_url = get_restaurant_display_image(restaurant)
 
+    # Prepare amenities data as JSON for JavaScript
+    amenities_json = list(AmenityCategory.objects.all().order_by('order').values('id', 'name', 'icon'))
+    
+    import json
     context = {
         'restaurants': restaurants,
         'districts': districts,
         'current_district': district_filter,
         'current_sort': sort,
+        'amenity_categories': AmenityCategory.objects.all().order_by('order'),
+        'amenities_json': json.dumps(amenities_json),
+        'selected_amenities': amenity_ids,
     }
     return render(request, 'restaurants/index.html', context)
 
@@ -972,6 +991,8 @@ def admin_restaurant_form(request, pk=None):
         name = request.POST.get('name')
         address = request.POST.get('address')
         district = request.POST.get('district')
+        description = request.POST.get('description', '')
+        long_description = request.POST.get('long_description', '')
         image = request.FILES.get('image')
         gallery_images = request.FILES.getlist('gallery_images')
         is_pickup_available = request.POST.get('is_pickup_available') == 'on'
@@ -984,6 +1005,8 @@ def admin_restaurant_form(request, pk=None):
             restaurant.name = name
             restaurant.address = address
             restaurant.district = district
+            restaurant.description = description
+            restaurant.long_description = long_description
             restaurant.location = pnt
             restaurant.is_pickup_available = is_pickup_available
             if image:
@@ -1005,6 +1028,8 @@ def admin_restaurant_form(request, pk=None):
                 name=name,
                 address=address,
                 district=district,
+                description=description,
+                long_description=long_description,
                 location=pnt,
                 image=image,
                 is_pickup_available=is_pickup_available
@@ -1020,13 +1045,45 @@ def admin_restaurant_form(request, pk=None):
 
             flash_msg.success(request, f"Đã thêm '{name}' thành công!")
 
+        # ============================================
+        # HANDLE AMENITIES
+        # ============================================
+        # Clear existing amenities
+        restaurant.amenities.all().delete()
+
+        # Add selected amenities
+        amenity_ids = request.POST.getlist('amenities')
+        for amenity_id in amenity_ids:
+            notes = request.POST.get(f'amenity_notes_{amenity_id}', '').strip()
+            RestaurantAmenity.objects.create(
+                restaurant=restaurant,
+                category_id=amenity_id,
+                note=notes,
+                is_available=True
+            )
+
         return redirect('admin_restaurant_list')
+
+    # Get amenity categories and existing amenity IDs for context
+    amenity_categories = AmenityCategory.objects.all().order_by('order')
+    restaurant_amenity_ids = []
+    amenity_notes = {}
+    if restaurant:
+        restaurant_amenity_ids = list(
+            restaurant.amenities.values_list('category_id', flat=True)
+        )
+        # Get notes for each amenity
+        for amenity in restaurant.amenities.all():
+            amenity_notes[amenity.category_id] = amenity.note
 
     context = {
         'restaurant': restaurant,
         'districts': Restaurant.DISTRICT_CHOICES,
         'action_title': action_title,
-        'active_page': 'restaurants'
+        'active_page': 'restaurants',
+        'amenity_categories': amenity_categories,
+        'restaurant_amenity_ids': restaurant_amenity_ids,
+        'amenity_notes': amenity_notes,
     }
     return render(request, 'restaurants/admin_form.html', context)
 

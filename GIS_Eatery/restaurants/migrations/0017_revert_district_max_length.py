@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('restaurants', '0016_update_models'),
+        ('restaurants', '0016_userprofile_passwordresettoken'),
     ]
 
     operations = [

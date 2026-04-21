@@ -1,0 +1,57 @@
+## ✅ ICON FIELD NAME FIX
+
+### **Issue Found:**
+Field name mismatch: Code was using `icon_class` but model uses `icon`
+
+### **Error:**
+```
+FieldError: Cannot resolve keyword 'icon_class' into field. 
+Choices are: description, icon, id, name, order, restaurant_amenities
+```
+
+### **Root Cause:**
+AmenityCategory model field:
+```python
+icon = models.CharField(
+    max_length=50,
+    help_text="Font Awesome icon class (vd: fas fa-wifi)",
+    verbose_name="Icon"
+)
+```
+
+### **Files Fixed:**
+
+**1. views.py (index function)**
+```python
+# BEFORE (❌ Wrong):
+amenities_json = list(AmenityCategory.objects.all().order_by('order').values('id', 'name', 'icon_class'))
+
+# AFTER (✅ Correct):
+amenities_json = list(AmenityCategory.objects.all().order_by('order').values('id', 'name', 'icon'))
+```
+
+**2. index.html (JavaScript)**
+```javascript
+// BEFORE (❌ Wrong):
+btn.innerHTML = `<i class="${amenity.icon_class}"></i> ${amenity.name}`;
+
+// AFTER (✅ Correct):
+btn.innerHTML = `<i class="${amenity.icon}"></i> ${amenity.name}`;
+```
+
+**3. admin_form.html (Template)**
+```html
+<!-- BEFORE (❌ Wrong):
+<i class="{{ category.icon_class }} text-danger"></i> {{ category.name }}
+
+<!-- AFTER (✅ Correct):
+<i class="{{ category.icon }} text-danger"></i> {{ category.name }}
+```
+
+### **Verification:**
+✅ Django check: No issues
+✅ Model fields: ['restaurant_amenities', 'id', 'name', 'icon', 'description', 'order']
+✅ Sample data: Free Wifi with icon "fas fa-wifi"
+
+### **Status:**
+🎉 **FIXED** - Amenity filter now works correctly on both index and admin pages
