@@ -1,0 +1,167 @@
+{% extends 'restaurants/base_admin.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h2 class="mb-0">Quản Lý Tài Khoản Đăng Ký</h2>
+    <div class="small text-muted">
+        Tổng: <strong>{{ stats_total }}</strong> |
+        Hoạt động: <strong>{{ stats_active }}</strong> |
+        Đã xác minh: <strong>{{ stats_verified }}</strong> |
+        Admin: <strong>{{ stats_admin }}</strong>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-lg-5 col-md-12">
+                <label class="form-label mb-1">Tìm kiếm</label>
+                <input
+                    type="text"
+                    class="form-control"
+                    name="q"
+                    value="{{ query }}"
+                    placeholder="Username, email, họ tên..."
+                >
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <label class="form-label mb-1">Trạng thái</label>
+                <select class="form-select" name="status">
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Tất cả</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Đang hoạt động</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Đã khóa</option>
+                    <option value="verified" {% if status_filter == 'verified' %}selected{% endif %}>Email đã xác minh</option>
+                    <option value="unverified" {% if status_filter == 'unverified' %}selected{% endif %}>Email chưa xác minh</option>
+                    <option value="admin" {% if status_filter == 'admin' %}selected{% endif %}>Tài khoản admin</option>
+                </select>
+            </div>
+            <div class="col-lg-4 col-md-6 d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> Lọc
+                </button>
+                <a href="{% url 'admin_user_accounts' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-undo"></i> Reset
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Tài khoản</th>
+                        <th>Vai trò</th>
+                        <th>Trạng thái</th>
+                        <th>Email xác minh</th>
+                        <th>Ngày tạo</th>
+                        <th>Đơn đặt bàn</th>
+                        <th class="text-end">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            <div class="fw-bold">{{ u.username }}</div>
+                            <small class="text-muted">{{ u.email|default:"(không có email)" }}</small>
+                        </td>
+                        <td>
+                            {% if u.is_superuser %}
+                                <span class="badge bg-danger">Super Admin</span>
+                            {% elif u.is_staff %}
+                                <span class="badge bg-warning text-dark">Staff</span>
+                            {% else %}
+                                <span class="badge bg-secondary">User</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if u.is_active %}
+                                <span class="badge bg-success">Đang hoạt động</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Đã khóa</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if u.is_email_verified %}
+                                <span class="badge bg-primary">Đã xác minh</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border">Chưa xác minh</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div>{{ u.date_joined|date:"d/m/Y" }}</div>
+                            <small class="text-muted">{{ u.date_joined|date:"H:i" }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ u.booking_count }}</span>
+                        </td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1 flex-wrap justify-content-end">
+                                {% if u.is_active %}
+                                    {% if u.id == request.user.id %}
+                                        <button class="btn btn-sm btn-outline-secondary" disabled>Đang dùng</button>
+                                    {% else %}
+                                        <a
+                                            href="{% url 'admin_user_account_action' u.id 'deactivate' %}"
+                                            class="btn btn-sm btn-outline-danger"
+                                            onclick="return confirm('Khóa tài khoản {{ u.username }}?')"
+                                        >
+                                            Khóa
+                                        </a>
+                                    {% endif %}
+                                {% else %}
+                                    <a
+                                        href="{% url 'admin_user_account_action' u.id 'activate' %}"
+                                        class="btn btn-sm btn-outline-success"
+                                        onclick="return confirm('Kích hoạt tài khoản {{ u.username }}?')"
+                                    >
+                                        Mở khóa
+                                    </a>
+                                {% endif %}
+
+                                {% if u.is_email_verified %}
+                                    <a
+                                        href="{% url 'admin_user_account_action' u.id 'unverify' %}"
+                                        class="btn btn-sm btn-outline-secondary"
+                                        onclick="return confirm('Bỏ xác minh email của {{ u.username }}?')"
+                                    >
+                                        Bỏ verify
+                                    </a>
+                                {% else %}
+                                    <a
+                                        href="{% url 'admin_user_account_action' u.id 'verify' %}"
+                                        class="btn btn-sm btn-outline-primary"
+                                        onclick="return confirm('Xác minh email cho {{ u.username }}?')"
+                                    >
+                                        Verify
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">Không có tài khoản nào.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

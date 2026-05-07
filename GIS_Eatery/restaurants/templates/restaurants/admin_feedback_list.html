@@ -1,65 +1,89 @@
 {% extends 'restaurants/base_admin.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <a href="{% url 'admin_restaurant_list' %}" class="text-muted text-decoration-none">
-            <i class="fas fa-arrow-left"></i> Quay lại
+        <a href="{% url 'admin_all_feedbacks' %}" class="text-muted text-decoration-none">
+            <i class="fas fa-arrow-left"></i> Tat ca danh gia
         </a>
-        <h2 class="mb-0 mt-2">
-            <i class="fas fa-comments"></i> Phản hồi: <span class="text-danger">{{ restaurant.name }}</span>
-        </h2>
+        <h2 class="mb-0 mt-2">Danh Gia Cua Quan: <span class="text-danger">{{ restaurant.name }}</span></h2>
     </div>
-    <div class="bg-white p-2 rounded border shadow-sm">
-        <strong>Tổng phản hồi:</strong> {{ total_feedbacks }}
+    <div class="small text-muted">
+        Tong: <strong>{{ total_feedbacks }}</strong> |
+        Chua doc: <strong>{{ unread_count }}</strong>
     </div>
 </div>
 
-{% if feedbacks %}
-    <div class="row gap-3">
-        {% for feedback in feedbacks %}
-        <div class="col-12">
-            <div class="card shadow-sm border-0 {% if not feedback.is_read %}border-left-danger{% endif %}">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div>
-                            <h5 class="card-title mb-1">
-                                {% if not feedback.is_read %}
-                                    <span class="badge bg-danger me-2">CHƯA XEM</span>
-                                {% endif %}
-                                {{ feedback.customer_name }}
-                            </h5>
-                            <small class="text-muted">
-                                <i class="fas fa-envelope"></i> {{ feedback.customer_email }}<br>
-                                <i class="fas fa-calendar"></i> {{ feedback.created_at|date:"d/m/Y H:i" }}
-                            </small>
-                        </div>
-                        <div class="text-end">
-                            <div class="mb-2">
-                                <span class="badge bg-warning text-dark fs-6">
-                                    {{ feedback.get_rating_display }}
-                                </span>
-                            </div>
-                            {% if not feedback.is_read %}
-                                <a href="{% url 'mark_feedback_as_read' feedback.id %}" class="btn btn-sm btn-outline-primary" title="Đánh dấu đã xem">
-                                    <i class="fas fa-eye"></i> Đánh dấu xem
-                                </a>
-                            {% endif %}
-                        </div>
-                    </div>
-                    
-                    <div class="card-text">
-                        <p class="mb-0 text-dark">{{ feedback.message }}</p>
-                    </div>
-                </div>
-            </div>
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-        {% endfor %}
-    </div>
-{% else %}
-    <div class="card shadow-sm border-0 text-center py-5">
-        <i class="fas fa-comment-dots text-muted" style="font-size: 3rem;"></i>
-        <p class="text-muted mt-3">Chưa có phản hồi nào.</p>
-    </div>
+    {% endfor %}
 {% endif %}
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Khach hang</th>
+                        <th>Danh gia</th>
+                        <th>Noi dung</th>
+                        <th>Thoi gian</th>
+                        <th>Trang thai</th>
+                        <th class="text-end">Hanh dong</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for feedback in feedbacks %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold">{{ feedback.customer_name }}</div>
+                            <small class="text-muted">{{ feedback.customer_email }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-warning text-dark">{{ feedback.rating }}/5</span>
+                        </td>
+                        <td style="max-width: 420px;">{{ feedback.message|truncatechars:140 }}</td>
+                        <td>
+                            <div>{{ feedback.created_at|date:"d/m/Y" }}</div>
+                            <small class="text-muted">{{ feedback.created_at|date:"H:i" }}</small>
+                        </td>
+                        <td>
+                            {% if feedback.is_read %}
+                                <span class="badge bg-success">Da doc</span>
+                            {% else %}
+                                <span class="badge bg-danger">Chua doc</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1">
+                                {% if feedback.is_read %}
+                                    <a href="{% url 'admin_feedback_action' feedback.id 'unread' %}" class="btn btn-sm btn-outline-secondary">Chua doc</a>
+                                {% else %}
+                                    <a href="{% url 'admin_feedback_action' feedback.id 'read' %}" class="btn btn-sm btn-outline-primary">Da doc</a>
+                                {% endif %}
+                                <a
+                                    href="{% url 'admin_feedback_action' feedback.id 'delete' %}"
+                                    class="btn btn-sm btn-outline-danger"
+                                    onclick="return confirm('Xoa danh gia nay?')"
+                                >
+                                    Xoa
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">Quan nay chua co danh gia.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}

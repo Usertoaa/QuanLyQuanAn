@@ -1,0 +1,11 @@
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Subject: Test local email
+From: noreply@giseatery.com
+To: local@example.com
+Date: Fri, 01 May 2026 01:47:40 -0000
+Message-ID: <177760006000.16212.8077439614028816071@LAPTOP-OFVNJG72>
+
+Nếu bạn thấy nội dung này thì backend email local hoạt động.
+-------------------------------------------------------------------------------

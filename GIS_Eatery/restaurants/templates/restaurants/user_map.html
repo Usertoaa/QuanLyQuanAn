@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="referrer" content="origin">
+    <meta name="color-scheme" content="only light">
+    <meta name="darkreader-lock">
     <title>Bản đồ Thông minh - GIS Eatery</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
@@ -15,13 +17,28 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     <style>
+        :root { color-scheme: only light; }
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Arial, sans-serif; background: #f6f6f6; }
-        #map { height: 100%; width: 100%; }
+        #map { height: 100%; width: 100%; background: #e9edf2; }
+        #map .leaflet-layer,
+        #map .leaflet-tile-pane,
+        #map .leaflet-tile-container,
+        #map .leaflet-tile {
+            filter: none !important;
+            -webkit-filter: none !important;
+            mix-blend-mode: normal !important;
+            background-color: transparent !important;
+        }
+        #map .leaflet-tile:not(.leaflet-tile-loaded) {
+            visibility: hidden;
+        }
         .control-panel {
             position: absolute; top: 20px; left: 20px; z-index: 1000;
             background: #fff; padding: 0; border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15); width: 340px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            width: min(340px, calc(100vw - 40px));
             max-height: 90vh; overflow-y: auto;
+            transition: width 0.25s ease, max-height 0.25s ease, box-shadow 0.25s ease;
         }
         .control-panel-header {
             background: linear-gradient(135deg, #cf2127 0%, #a01820 100%);
@@ -29,6 +46,8 @@
             padding: 16px;
             border-radius: 12px 12px 0 0;
             margin-bottom: 0;
+            position: relative;
+            padding-right: 46px;
         }
         .control-panel-header h4 {
             margin: 0 0 8px 0;
@@ -42,6 +61,51 @@
             font-size: 13px;
             opacity: 0.9;
             margin: 0;
+        }
+        .panel-toggle-btn {
+            position: absolute;
+            top: 12px;
+            right: 10px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        .panel-toggle-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+        }
+        .control-panel.collapsed {
+            width: 58px;
+            max-height: 58px;
+            overflow: hidden;
+            box-shadow: 0 6px 22px rgba(0,0,0,0.22);
+        }
+        .control-panel.collapsed .control-panel-header {
+            border-radius: 12px;
+            padding: 14px 8px;
+        }
+        .control-panel.collapsed .control-panel-header h4 {
+            margin: 0;
+            justify-content: center;
+        }
+        .control-panel.collapsed .control-panel-header h4 span,
+        .control-panel.collapsed .control-panel-header .subtitle,
+        .control-panel.collapsed .control-panel-body {
+            display: none;
+        }
+        .control-panel.collapsed .panel-toggle-btn {
+            right: 7px;
+            top: 8px;
+            border-color: rgba(255,255,255,0.35);
+            background: rgba(0,0,0,0.12);
         }
         .control-panel-body {
             padding: 16px;
@@ -103,6 +167,23 @@
         }
         .btn-scan:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(207, 33, 39, 0.3); }
         .btn-scan:active { transform: translateY(0); }
+        .btn-export-excel {
+            width: 100%;
+            background: linear-gradient(135deg, #2f9e44 0%, #20703a 100%);
+            color: white;
+            border: none;
+            padding: 11px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 0 0 10px 0;
+            font-size: 13px;
+            transition: all 0.25s;
+        }
+        .btn-export-excel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(47, 158, 68, 0.28);
+        }
         .small-text { font-size: 12px; color: #999; margin-bottom: 12px; display: block; }
         .popup-img { width: 100%; height: 110px; object-fit: cover; border-radius: 6px; margin-bottom: 5px; }
         #resultsList {
@@ -246,6 +327,78 @@
         .btn-use-gps:hover {
             background: #5a6268;
         }
+        .leaflet-routing-container {
+            width: min(390px, calc(100vw - 40px));
+            max-height: min(84vh, 640px);
+            overflow-y: auto;
+            background: rgba(15, 19, 24, 0.96);
+            color: #f2f4f8;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.42);
+            padding: 8px 10px;
+        }
+        .leaflet-routing-alt,
+        .leaflet-routing-alt h2,
+        .leaflet-routing-alt h3,
+        .leaflet-routing-alt table,
+        .leaflet-routing-alt tr,
+        .leaflet-routing-alt td {
+            color: #f2f4f8 !important;
+            background: transparent !important;
+            border-color: rgba(255, 255, 255, 0.12) !important;
+        }
+        .leaflet-routing-alt {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.14) !important;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+        }
+        .leaflet-routing-alt:last-child {
+            border-bottom: none !important;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .leaflet-routing-alt-minimized {
+            color: #d8dee9 !important;
+        }
+        .leaflet-routing-icon {
+            filter: brightness(1.2) contrast(1.15);
+        }
+        .routing-summary {
+            margin: 2px 0 8px 0;
+            font-size: 15px;
+            color: #ffffff;
+        }
+        .routing-summary b {
+            color: #ffffff;
+        }
+        .leaflet-top.leaflet-right {
+            top: 20px;
+            right: 20px;
+        }
+        @media (max-width: 768px) {
+            .control-panel {
+                top: 12px;
+                left: 12px;
+                width: min(300px, calc(100vw - 96px));
+                max-height: calc(100vh - 24px);
+            }
+            .control-panel-body {
+                padding: 12px;
+            }
+            #resultsList {
+                max-height: 180px;
+            }
+            .leaflet-routing-container {
+                width: min(310px, calc(100vw - 24px));
+                max-height: 42vh;
+            }
+            .leaflet-top.leaflet-right {
+                top: auto;
+                right: 12px;
+                bottom: 14px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -254,6 +407,9 @@
         <div class="control-panel-header">
             <h4><i class="fas fa-map-marked-alt"></i> <span id="headerTitle">Tìm quanh đây</span></h4>
             <p class="subtitle" id="headerSubtitle">Khám phá các quán ăn gần bạn</p>
+            <button id="panelToggleBtn" class="panel-toggle-btn" type="button" onclick="toggleControlPanel()" aria-label="Thu nhỏ bảng điều khiển" title="Thu nhỏ">
+                <i class="fas fa-angle-left"></i>
+            </button>
         </div>
         
         <div class="control-panel-body">
@@ -287,11 +443,15 @@
             <h5><i class="fas fa-search"></i> Tìm kiếm</h5>
             
             <label style="font-size: 13px; color: #333; display: block; margin-bottom: 6px; font-weight: 500;">Bán kính (km):</label>
-            <input type="number" id="radius" class="form-control" value="2" min="1" max="50">
-            <span class="small-text">Nhập số km muốn quét</span>
+            <input type="number" id="radius" class="form-control" value="2" min="1" max="15">
+            <span class="small-text">Nhập số km muốn quét (tối đa 15km)</span>
 
             <button class="btn-scan" onclick="scanNearby()">
                 <i class="fas fa-search-location"></i> QUÉT QUÁN ĂN
+            </button>
+
+            <button class="btn-export-excel" onclick="exportNearbyExcel()">
+                <i class="fas fa-file-excel"></i> XUẤT EXCEL THEO BÁN KÍNH
             </button>
             
             <div class="divider"></div>
@@ -318,12 +478,47 @@
 
 <script>
     // 1. Khởi tạo bản đồ
-    var map = L.map('map').setView([10.7626, 106.6602], 13);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    var map = L.map('map', {
+        zoomAnimation: false,
+        fadeAnimation: false,
+        markerZoomAnimation: false,
+        zoomSnap: 1,
+        zoomDelta: 1
+    }).setView([10.7626, 106.6602], 13);
+
+    var baseTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
-        maxZoom: 20
+        maxZoom: 20,
+        updateWhenZooming: true,
+        updateWhenIdle: false,
+        keepBuffer: 4,
+        crossOrigin: true
     }).addTo(map);
+
+    function normalizeMapTile(tile) {
+        if (!tile) return;
+        tile.style.setProperty('filter', 'none', 'important');
+        tile.style.setProperty('-webkit-filter', 'none', 'important');
+        tile.style.setProperty('mix-blend-mode', 'normal', 'important');
+        tile.style.setProperty('background-color', 'transparent', 'important');
+    }
+
+    baseTileLayer.on('tileloadstart', function(e) {
+        normalizeMapTile(e.tile);
+    });
+
+    baseTileLayer.on('tileload', function(e) {
+        normalizeMapTile(e.tile);
+    });
+
+    baseTileLayer.on('tileerror', function(e) {
+        normalizeMapTile(e.tile);
+        if (!e.tile || e.tile.dataset.retried === '1') return;
+        e.tile.dataset.retried = '1';
+        const cleanSrc = (e.tile.src || '').split('?')[0];
+        e.tile.src = `${cleanSrc}?retry=${Date.now()}`;
+    });
 
     var userMarker = null;
     var searchCircle = null;
@@ -332,6 +527,37 @@
     var restaurantMarker = null; // Biến lưu marker quán ăn
     var userLat = null, userLng = null;
     var isPinMode = false; // Chế độ ghim vị trí
+    var controlPanelEl = document.querySelector('.control-panel');
+    var panelToggleBtnEl = document.getElementById('panelToggleBtn');
+
+    function setPanelCollapsed(collapsed) {
+        controlPanelEl.classList.toggle('collapsed', collapsed);
+
+        if (collapsed) {
+            panelToggleBtnEl.innerHTML = '<i class="fas fa-angle-right"></i>';
+            panelToggleBtnEl.setAttribute('aria-label', 'Mở bảng điều khiển');
+            panelToggleBtnEl.setAttribute('title', 'Mở rộng');
+        } else {
+            panelToggleBtnEl.innerHTML = '<i class="fas fa-angle-left"></i>';
+            panelToggleBtnEl.setAttribute('aria-label', 'Thu nhỏ bảng điều khiển');
+            panelToggleBtnEl.setAttribute('title', 'Thu nhỏ');
+        }
+
+        setTimeout(function() {
+            map.invalidateSize({ pan: false, animate: false });
+        }, 260);
+    }
+
+    function toggleControlPanel() {
+        const isCollapsed = controlPanelEl.classList.contains('collapsed');
+        setPanelCollapsed(!isCollapsed);
+    }
+
+    function collapsePanelOnMobile() {
+        if (window.matchMedia('(max-width: 768px)').matches) {
+            setPanelCollapsed(true);
+        }
+    }
 
     // 2. Lấy vị trí người dùng (GPS trình duyệt)
     map.locate({setView: true, maxZoom: 14});
@@ -412,6 +638,7 @@
                     // Zoom to restaurant
                     const bounds = L.latLngBounds([[userLat, userLng], [restaurant.lat, restaurant.lng]]);
                     map.fitBounds(bounds, {padding: [80, 50]});
+                    collapsePanelOnMobile();
                 } else {
                     alert("Không tìm thấy quán ăn!");
                 }
@@ -422,58 +649,122 @@
             });
     }
 
+    function parseGeocodeCandidate(rawData) {
+        if (!rawData || typeof rawData !== 'object') {
+            return null;
+        }
+
+        const lat = Number(rawData.lat);
+        const lng = Number(rawData.lng ?? rawData.lon ?? rawData.longitude);
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            return null;
+        }
+
+        return {
+            lat,
+            lng,
+            address: rawData.address || rawData.display_name || ''
+        };
+    }
+
+    async function fetchFirstGeocodeCandidate(query) {
+        const apiUrl = `/api/geocode-address/?q=${encodeURIComponent(query)}`;
+        console.log('Gọi API:', apiUrl);
+
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+
+        if (!response.ok) {
+            return { error: data?.error || `Lỗi HTTP ${response.status}` };
+        }
+
+        if (Array.isArray(data)) {
+            return data.length > 0 ? parseGeocodeCandidate(data[0]) : null;
+        }
+
+        if (data && data.error) {
+            return { error: data.error };
+        }
+
+        return parseGeocodeCandidate(data);
+    }
+
+    function buildGeocodeQueries(inputAddress) {
+        const normalized = inputAddress.toLowerCase();
+        const queries = [inputAddress];
+        const hasCityHint = normalized.includes('hồ chí minh')
+            || normalized.includes('ho chi minh')
+            || normalized.includes('tp hcm')
+            || normalized.includes('sài gòn')
+            || normalized.includes('sai gon');
+
+        if (!hasCityHint) {
+            queries.push(`${inputAddress}, Thành phố Hồ Chí Minh, Việt Nam`);
+        }
+
+        return queries;
+    }
+
     // 4. Hàm tìm kiếm và đặt vị trí từ địa chỉ
-    function searchAndSetLocation() {
+    async function searchAndSetLocation() {
         const address = document.getElementById('searchAddress').value.trim();
         if (!address) {
             alert("Vui lòng nhập địa chỉ!");
             return;
         }
-        
+
         document.getElementById('status').innerHTML = `<i class='fas fa-spinner fa-spin'></i> Đang tìm kiếm địa chỉ...`;
-        
-        // Gọi API geocode để chuyển địa chỉ thành tọa độ
-        const apiUrl = `/api/geocode-address/?q=${encodeURIComponent(address)}`;
-        console.log('Gọi API:', apiUrl);
-        
-        fetch(apiUrl)
-            .then(res => {
-                console.log('Response status:', res.status);
-                return res.json().then(data => ({status: res.status, data: data}));
-            })
-            .then(({status, data}) => {
-                console.log('Response data:', data);
-                
-                if (status === 200 && data.lat && data.lng) {
-                    userLat = data.lat;
-                    userLng = data.lng;
-                    
-                    // Cập nhật marker người dùng
-                    if (userMarker) map.removeLayer(userMarker);
-                    userMarker = L.marker([userLat, userLng], {
-                        icon: L.divIcon({
-                            className: 'user-icon',
-                            html: '<i class="fas fa-user-circle" style="font-size:30px; color:#007bff; background:white; border-radius:50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></i>',
-                            iconSize: [30, 30]
-                        })
-                    }).addTo(map).bindPopup(`Bạn: ${data.address || address}`);
-                    
-                    map.setView([userLat, userLng], 15);
-                    document.getElementById('status').innerHTML = `<i class='fas fa-check-circle' style='color:#28a745;'></i> Đã cập nhật vị trí!`;
-                    document.getElementById('searchAddress').value = '';
-                } else if (data.error) {
-                    document.getElementById('status').innerHTML = `<i class='fas fa-exclamation-circle' style='color:#dc3545;'></i> ${data.error}`;
-                    alert(data.error);
-                } else {
-                    document.getElementById('status').innerHTML = `<i class='fas fa-search' style='color:#dc3545;'></i> Không tìm thấy địa chỉ.`;
-                    alert("Không tìm thấy địa chỉ này. Vui lòng thử lại!");
+
+        try {
+            const queries = buildGeocodeQueries(address);
+            let candidate = null;
+            let lastError = '';
+
+            for (const query of queries) {
+                const result = await fetchFirstGeocodeCandidate(query);
+                console.log('Response data:', result);
+
+                if (!result) {
+                    continue;
                 }
-            })
-            .catch(err => {
-                console.error('Fetch error:', err);
-                document.getElementById('status').innerHTML = `<i class='fas fa-exclamation-circle' style='color:#dc3545;'></i> Lỗi kết nối!`;
-                alert("Lỗi khi tìm kiếm địa chỉ: " + err.message);
-            });
+
+                if (result.error) {
+                    lastError = result.error;
+                    continue;
+                }
+
+                candidate = result;
+                break;
+            }
+
+            if (!candidate) {
+                document.getElementById('status').innerHTML = `<i class='fas fa-search' style='color:#dc3545;'></i> Không tìm thấy địa chỉ.`;
+                alert(lastError || "Không tìm thấy địa chỉ này. Hãy nhập rõ hơn (số nhà, đường, quận) hoặc ghim trên bản đồ.");
+                return;
+            }
+
+            userLat = candidate.lat;
+            userLng = candidate.lng;
+
+            // Cập nhật marker người dùng
+            if (userMarker) map.removeLayer(userMarker);
+            userMarker = L.marker([userLat, userLng], {
+                icon: L.divIcon({
+                    className: 'user-icon',
+                    html: '<i class="fas fa-user-circle" style="font-size:30px; color:#007bff; background:white; border-radius:50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></i>',
+                    iconSize: [30, 30]
+                })
+            }).addTo(map).bindPopup(`Bạn: ${candidate.address || address}`);
+
+            map.setView([userLat, userLng], 15);
+            document.getElementById('status').innerHTML = `<i class='fas fa-check-circle' style='color:#28a745;'></i> Đã cập nhật vị trí!`;
+            document.getElementById('searchAddress').value = '';
+        } catch (err) {
+            console.error('Fetch error:', err);
+            document.getElementById('status').innerHTML = `<i class='fas fa-exclamation-circle' style='color:#dc3545;'></i> Lỗi kết nối!`;
+            alert("Lỗi khi tìm kiếm địa chỉ: " + err.message);
+        }
     }
 
     // 5. Hàm sử dụng GPS
@@ -492,12 +783,12 @@
             btnPinLocation.style.background = '#4caf50'; // Xanh lá cây
             pinModeText.textContent = 'Đang chế độ ghim - Click trên bản đồ';
             document.getElementById('status').innerHTML = `<i class='fas fa-map-marker-alt' style='color:#4caf50;'></i> Nhấp vào vị trí trên bản đồ để ghim`;
-            map.style.cursor = 'crosshair';
+            map.getContainer().style.cursor = 'crosshair';
         } else {
             btnPinLocation.style.background = '#ff9800'; // Cam
             pinModeText.textContent = 'Ghim vị trí trên bản đồ';
             document.getElementById('status').innerHTML = `<i class='fas fa-info-circle'></i> Tắt chế độ ghim vị trí`;
-            map.style.cursor = 'grab';
+            map.getContainer().style.cursor = 'grab';
         }
     }
 
@@ -554,6 +845,7 @@
                 if (data.length === 0) {
                     document.getElementById('status').innerHTML = "<i class='fas fa-search' style='color:#dc3545;'></i> Không tìm thấy quán nào.";
                     document.getElementById('resultsList').innerHTML = '';
+                    collapsePanelOnMobile();
                     return;
                 }
                 document.getElementById('status').innerHTML = `<i class='fas fa-check-circle' style='color:#28a745;'></i> Tìm thấy <strong>${data.length}</strong> quán!`;
@@ -590,11 +882,114 @@
                     window._popupMarkerMap = window._popupMarkerMap || {};
                     window._popupMarkerMap[r.id] = marker;
                 });
+                collapsePanelOnMobile();
             })
             .catch(err => console.error(err));
     }
 
+    function exportNearbyExcel() {
+        if (!userLat || !userLng) {
+            alert("Chưa có vị trí của bạn. Hãy bật GPS hoặc ghim vị trí trước khi xuất Excel.");
+            return;
+        }
+
+        const radiusInput = document.getElementById('radius');
+        let radiusKm = parseFloat(radiusInput.value);
+
+        if (!Number.isFinite(radiusKm) || radiusKm <= 0) {
+            radiusKm = 2;
+        }
+
+        if (radiusKm > 15) {
+            radiusKm = 15;
+            radiusInput.value = '15';
+            alert("Bán kính xuất Excel tối đa là 15km. Hệ thống đã tự điều chỉnh về 15km.");
+        }
+
+        const exportUrl = `/api/export-nearby-excel/?lat=${userLat}&lng=${userLng}&radius=${radiusKm}`;
+        document.getElementById('status').innerHTML = `<i class='fas fa-file-export' style='color:#2f9e44;'></i> Đang tạo file Excel trong bán kính ${radiusKm}km...`;
+        window.open(exportUrl, '_blank');
+    }
+
     // 7. Hàm CHỈ ĐƯỜNG (Routing) - Sử dụng OSRM
+    function translateRoutingTextToVietnamese(text) {
+        if (!text || typeof text !== 'string') return text;
+
+        let translated = text;
+        const replacements = [
+            [/\bHead north\b/gi, 'Đi về hướng Bắc'],
+            [/\bHead south\b/gi, 'Đi về hướng Nam'],
+            [/\bHead east\b/gi, 'Đi về hướng Đông'],
+            [/\bHead west\b/gi, 'Đi về hướng Tây'],
+            [/\bHead northeast\b/gi, 'Đi về hướng Đông Bắc'],
+            [/\bHead northwest\b/gi, 'Đi về hướng Tây Bắc'],
+            [/\bHead southeast\b/gi, 'Đi về hướng Đông Nam'],
+            [/\bHead southwest\b/gi, 'Đi về hướng Tây Nam'],
+            [/\bTurn sharp left onto\b/gi, 'Rẽ gấp trái vào'],
+            [/\bTurn sharp right onto\b/gi, 'Rẽ gấp phải vào'],
+            [/\bTurn slight left onto\b/gi, 'Rẽ chếch trái vào'],
+            [/\bTurn slight right onto\b/gi, 'Rẽ chếch phải vào'],
+            [/\bTurn left onto\b/gi, 'Rẽ trái vào'],
+            [/\bTurn right onto\b/gi, 'Rẽ phải vào'],
+            [/\bContinue onto\b/gi, 'Tiếp tục vào'],
+            [/\bContinue straight onto\b/gi, 'Đi thẳng vào'],
+            [/\bMerge left onto\b/gi, 'Nhập làn bên trái vào'],
+            [/\bMerge right onto\b/gi, 'Nhập làn bên phải vào'],
+            [/\bKeep left towards\b/gi, 'Giữ bên trái hướng về'],
+            [/\bKeep right towards\b/gi, 'Giữ bên phải hướng về'],
+            [/\bKeep left\b/gi, 'Giữ bên trái'],
+            [/\bKeep right\b/gi, 'Giữ bên phải'],
+            [/\bTurn left\b/gi, 'Rẽ trái'],
+            [/\bTurn right\b/gi, 'Rẽ phải'],
+            [/\bContinue slightly left\b/gi, 'Tiếp tục chếch trái'],
+            [/\bContinue slightly right\b/gi, 'Tiếp tục chếch phải'],
+            [/\bContinue straight\b/gi, 'Tiếp tục đi thẳng'],
+            [/\bContinue\b/gi, 'Tiếp tục'],
+            [/\bMake a U-turn\b/gi, 'Quay đầu xe'],
+            [/\bU-turn\b/gi, 'Quay đầu'],
+            [/\bEnter the roundabout\b/gi, 'Vào vòng xuyến'],
+            [/\bTake the (\d+)(st|nd|rd|th) exit\b/gi, 'Ra lối thứ $1'],
+            [/\btowards\b/gi, 'hướng về'],
+            [/\bonto\b/gi, 'vào'],
+            [/\bDestination reached\b/gi, 'Bạn đã đến nơi'],
+            [/\bYou have arrived at your destination\b/gi, 'Bạn đã đến điểm đến'],
+            [/\bmin\b/gi, 'phút']
+        ];
+
+        replacements.forEach(([pattern, replacement]) => {
+            translated = translated.replace(pattern, replacement);
+        });
+
+        return translated;
+    }
+
+    function localizeRoutingPanelVietnamese() {
+        const routingContainer = document.querySelector('.leaflet-routing-container');
+        if (!routingContainer) return;
+
+        const showTextNodeType = (window.NodeFilter && window.NodeFilter.SHOW_TEXT)
+            ? window.NodeFilter.SHOW_TEXT
+            : 4;
+
+        const walker = document.createTreeWalker(
+            routingContainer,
+            showTextNodeType,
+            null
+        );
+
+        const textNodes = [];
+        while (walker.nextNode()) {
+            textNodes.push(walker.currentNode);
+        }
+
+        textNodes.forEach((node) => {
+            const original = node.nodeValue;
+            const trimmed = original ? original.trim() : '';
+            if (!trimmed) return;
+            node.nodeValue = translateRoutingTextToVietnamese(original);
+        });
+    }
+
     function getDirections(destLat, destLng) {
         if (!userLat) return alert("Cần vị trí của bạn để chỉ đường!");
         if (routingControl) {
@@ -602,7 +997,7 @@
         }
         
         try {
-            routingControl = L.Routing.control({
+            const baseRoutingOptions = {
                 waypoints: [
                     L.latLng(userLat, userLng),
                     L.latLng(destLat, destLng)
@@ -612,7 +1007,8 @@
                     profile: 'car'
                 }),
                 routeWhileDragging: false,
-                showAlternatives: false,
+                showAlternatives: true,
+                alternatives: 2,
                 lineOptions: {
                     styles: [{color: '#0066ff', opacity: 0.7, weight: 6}]
                 },
@@ -622,7 +1018,49 @@
                     styles: [{color: '#bbb', opacity: 0.5, weight: 5}]
                 },
                 summaryTemplate: '<div class="routing-summary"><b>{distance}</b> | <b>{time}</b></div>'
-            }).addTo(map);
+            };
+
+            try {
+                routingControl = L.Routing.control({
+                    ...baseRoutingOptions,
+                    language: 'vi',
+                    formatter: new L.Routing.Formatter({
+                        language: 'vi',
+                        units: 'metric'
+                    })
+                }).addTo(map);
+            } catch (localeError) {
+                console.warn('Không tải được locale vi, chuyển sang fallback:', localeError);
+                routingControl = L.Routing.control(baseRoutingOptions).addTo(map);
+            }
+
+            routingControl.on('routesfound', function(e) {
+                const route = e.routes && e.routes[0];
+                if (!route || !route.summary) return;
+
+                const distanceKm = (route.summary.totalDistance / 1000).toFixed(1);
+                const durationMin = Math.max(1, Math.round(route.summary.totalTime / 60));
+                const distanceEl = document.getElementById('currentRestaurantDistance');
+
+                if (distanceEl) {
+                    distanceEl.innerHTML = `
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span class="distance-badge">${distanceKm} km</span>
+                        <span style="font-size:12px; color:#888;">~ ${durationMin} phút</span>
+                    `;
+                }
+
+                document.getElementById('status').innerHTML = `
+                    <i class='fas fa-route' style='color:#007bff;'></i> 
+                    Đang chỉ đường: <strong>${distanceKm} km</strong> • khoảng <strong>${durationMin} phút</strong>
+                `;
+
+                localizeRoutingPanelVietnamese();
+            });
+
+            routingControl.on('routeselected', function() {
+                localizeRoutingPanelVietnamese();
+            });
             
             // Xử lý lỗi
             routingControl.on('routingerror', function(e) {
@@ -637,6 +1075,7 @@
         
         document.getElementById('stopRoutingBtn').style.display = 'block';
         map.closePopup();
+        collapsePanelOnMobile();
     }
 
     function stopRouting() {
@@ -665,6 +1104,10 @@
 
     // Xử lý Enter key trong input địa chỉ
     document.addEventListener('DOMContentLoaded', function() {
+        if (window.matchMedia('(max-width: 768px)').matches) {
+            setPanelCollapsed(true);
+        }
+
         const searchInput = document.getElementById('searchAddress');
         if (searchInput) {
             searchInput.addEventListener('keypress', function(e) {

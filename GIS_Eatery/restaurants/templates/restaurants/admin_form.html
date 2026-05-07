@@ -2,6 +2,26 @@
 {% load custom_filters %}
 
 {% block content %}
+<style>
+    .amenity-card .card {
+        border: 1px solid #eceff3 !important;
+        border-radius: 12px;
+        background: #ffffff;
+    }
+
+    .amenity-card .card-body {
+        padding: 0.9rem;
+    }
+
+    .amenity-card .form-check-input {
+        cursor: pointer;
+    }
+
+    .amenity-card .amenity-notes {
+        min-height: 62px;
+        resize: vertical;
+    }
+</style>
 <div class="row justify-content-center">
     <div class="col-md-10">
         <div class="d-flex justify-content-between mb-3">
@@ -11,27 +31,42 @@
 
         <div class="card shadow">
             <div class="card-body">
-                <form method="POST" enctype="multipart/form-data">
+                <form id="restaurant-form" method="POST" enctype="multipart/form-data">
                     {% csrf_token %}
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label>Tên quán:</label>
+                                {% if request.method == 'POST' %}
+                                <input type="text" name="name" class="form-control" value="{{ request.POST.name|default:'' }}" required>
+                                {% else %}
                                 <input type="text" name="name" class="form-control" value="{{ restaurant.name|default:'' }}" required>
+                                {% endif %}
                             </div>
 
                             <div class="mb-3">
                                 <label>Quận:</label>
                                 <select name="district" id="district-select" class="form-select">
                                     {% for code, name in districts %}
-                                    <option value="{{ code }}" {% if restaurant.district == code %}selected{% endif %}>{{ name }}</option>
+                                    <option value="{{ code }}"
+                                        {% if request.method == 'POST' %}
+                                            {% if request.POST.district == code %}selected{% endif %}
+                                        {% else %}
+                                            {% if restaurant.district == code %}selected{% endif %}
+                                        {% endif %}>
+                                        {{ name }}
+                                    </option>
                                     {% endfor %}
                                 </select>
                             </div>
 
                             <div class="form-check form-switch mb-3">
                                 <input class="form-check-input" type="checkbox" name="is_pickup_available" id="pickup_available"
-                                       {% if restaurant and restaurant.is_pickup_available %}checked{% endif %}>
+                                       {% if request.method == 'POST' %}
+                                           {% if request.POST.is_pickup_available %}checked{% endif %}
+                                       {% elif restaurant and restaurant.is_pickup_available %}
+                                           checked
+                                       {% endif %}>
                                 <label class="form-check-label" for="pickup_available">
                                     Cho phép đặt trước đến lấy món
                                 </label>
@@ -67,7 +102,11 @@
                             <div class="mb-3">
                                 <label>Địa chỉ:</label>
                                 <div class="input-group">
+                                    {% if request.method == 'POST' %}
+                                    <input type="text" id="address-input" name="address" class="form-control" value="{{ request.POST.address|default:'' }}" required>
+                                    {% else %}
                                     <input type="text" id="address-input" name="address" class="form-control" value="{{ restaurant.address|default:'' }}" required>
+                                    {% endif %}
                                     <button type="button" class="btn btn-outline-secondary" onclick="geocodeAddress()">
                                         <i class="fas fa-search"></i>
                                     </button>
@@ -82,13 +121,21 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label>Mô tả ngắn:</label>
+                                {% if request.method == 'POST' %}
+                                <textarea name="description" class="form-control" rows="3" placeholder="Mô tả ngắn về quán (tối đa 500 ký tự)">{{ request.POST.description|default:'' }}</textarea>
+                                {% else %}
                                 <textarea name="description" class="form-control" rows="3" placeholder="Mô tả ngắn về quán (tối đa 500 ký tự)">{{ restaurant.description|default:'' }}</textarea>
+                                {% endif %}
                                 <small class="text-muted">Dùng cho danh sách quán.</small>
                             </div>
 
                             <div class="mb-3">
                                 <label>Mô tả dài:</label>
+                                {% if request.method == 'POST' %}
+                                <textarea name="long_description" class="form-control" rows="5" placeholder="Mô tả chi tiết: lịch sử quán, phong cách ẩm thực, các đặc biệt, giờ hoạt động, v.v.">{{ request.POST.long_description|default:'' }}</textarea>
+                                {% else %}
                                 <textarea name="long_description" class="form-control" rows="5" placeholder="Mô tả chi tiết: lịch sử quán, phong cách ẩm thực, các đặc biệt, giờ hoạt động, v.v.">{{ restaurant.long_description|default:'' }}</textarea>
+                                {% endif %}
                                 <small class="text-muted">Sẽ hiển thị ở trang chi tiết quán.</small>
                             </div>
                         </div>
@@ -134,7 +181,9 @@
                                 {% empty %}
                                 <div class="col-md-12">
                                     <div class="alert alert-warning">
-                                        <i class="fas fa-exclamation-triangle"></i> Chưa có tiện ích nào được tạo. Vui lòng liên hệ quản trị viên.
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        Chưa có tiện ích nào được tạo.
+                                        <a href="{% url 'admin_amenity_list' %}" class="alert-link">Bấm vào đây để thêm tiện ích</a>.
                                     </div>
                                 </div>
                                 {% endfor %}
@@ -147,8 +196,13 @@
                             <label class="fw-bold text-danger">Vị trí quán (Kéo thả để chỉnh):</label>
                             <div id="map-picker" style="height: 350px; border: 1px solid #ddd;"></div>
 
+                            {% if request.method == 'POST' %}
+                            <input type="hidden" name="lat" id="lat" value="{{ request.POST.lat|default:'' }}" required>
+                            <input type="hidden" name="lng" id="lng" value="{{ request.POST.lng|default:'' }}" required>
+                            {% else %}
                             <input type="hidden" name="lat" id="lat" value="{{ restaurant.location.y|default:'' }}" required>
                             <input type="hidden" name="lng" id="lng" value="{{ restaurant.location.x|default:'' }}" required>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -513,6 +567,20 @@
 
     if (currentLat && currentLng) {
         updateMarker(parseFloat(currentLat), parseFloat(currentLng), 16);
+    }
+
+    const restaurantForm = document.getElementById('restaurant-form');
+    if (restaurantForm) {
+        restaurantForm.addEventListener('submit', function(event) {
+            const latValue = parseFloat(latInput.value);
+            const lngValue = parseFloat(lngInput.value);
+
+            if (!Number.isFinite(latValue) || !Number.isFinite(lngValue)) {
+                event.preventDefault();
+                alert('Vui lòng chọn vị trí quán trên bản đồ trước khi lưu.');
+                document.getElementById('map-picker').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
     }
 
     mapPicker.on('click', function(e) {

@@ -1,4 +1,4 @@
-import requests
+﻿import requests
 from datetime import datetime, timedelta
 import uuid
 import hashlib
@@ -7,13 +7,14 @@ from django.http import FileResponse
 from io import BytesIO
 
 from django.shortcuts import get_object_or_404, render, redirect
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
+from django.conf import settings
 from django.contrib.gis.geos import Point
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
-from django.db.models import Q, OuterRef, Subquery
+from django.db.models import Q, OuterRef, Subquery, Count
 from django.db.models.functions import Coalesce
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.gis.measure import D
@@ -25,6 +26,7 @@ from django.contrib import messages as flash_msg
 from django.core.mail import send_mail
 from django.utils.html import strip_tags
 from django.urls import reverse
+from django.db import IntegrityError, transaction
 
 from .models import (
     Restaurant,
@@ -43,13 +45,98 @@ from .models import (
 )
 from .forms import CustomUserCreationForm, CustomSetPasswordForm, DishImportForm
 from .import_dishes_from_excel import DishImportHandler
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 
 # ============================================
 # CONSTANTS
 # ============================================
-BOOKING_SLOT_MINUTES = 30
-ADVANCE_BOOKING_MINUTES = 90  # Không được đặt sớm quá 90 phút
+BOOKING_DURATION_MINUTES = 90
+AUTO_CANCEL_AFTER_MINUTES = 30
 ACTIVE_RESERVATION_STATUSES = ['pending', 'confirmed', 'waiting']
+STANDARD_TABLE_LAYOUT = [
+    ('Bàn 1', 4),
+    ('Bàn 2', 4),
+    ('Bàn 3', 4),
+    ('Bàn 4', 4),
+    ('Bàn 5', 10),
+    ('Bàn 6', 10),
+]
+STANDARD_TABLE_NUMBERS = [item[0] for item in STANDARD_TABLE_LAYOUT]
+AMENITY_ICON_PRESETS = [
+    {'icon': 'fas fa-wifi', 'label': 'Wifi'},
+    {'icon': 'fas fa-snowflake', 'label': 'May lanh'},
+    {'icon': 'fas fa-parking', 'label': 'Gui xe'},
+    {'icon': 'fas fa-fan', 'label': 'Hut khoi'},
+    {'icon': 'fas fa-restroom', 'label': 'Toilet'},
+    {'icon': 'fas fa-calendar-check', 'label': 'Dat ban'},
+    {'icon': 'fas fa-motorcycle', 'label': 'Giao hang'},
+    {'icon': 'fas fa-chair', 'label': 'Ban cao'},
+    {'icon': 'fas fa-music', 'label': 'Nhac song'},
+    {'icon': 'fas fa-truck', 'label': 'Van chuyen'},
+    {'icon': 'fas fa-credit-card', 'label': 'Thanh toan'},
+    {'icon': 'fas fa-tv', 'label': 'Tivi'},
+    {'icon': 'fas fa-plug', 'label': 'O cam'},
+    {'icon': 'fas fa-clock', 'label': 'Mo cua khuya'},
+    {'icon': 'fas fa-couch', 'label': 'Sofa'},
+]
+DEFAULT_AMENITY_CATEGORIES = [
+    {
+        'name': 'Free Wifi',
+        'icon': 'fas fa-wifi',
+        'description': 'Wifi mien phi cho khach hang.',
+        'order': 1,
+    },
+    {
+        'name': 'Máy lạnh',
+        'icon': 'fas fa-snowflake',
+        'description': 'Khu vuc co may lanh.',
+        'order': 2,
+    },
+    {
+        'name': 'Giữ xe',
+        'icon': 'fas fa-parking',
+        'description': 'Co cho gui xe cho khach.',
+        'order': 3,
+    },
+    {
+        'name': 'Bàn hút khói',
+        'icon': 'fas fa-fan',
+        'description': 'Co khu vuc danh cho khach hut thuoc.',
+        'order': 4,
+    },
+    {
+        'name': 'Toilet sạch',
+        'icon': 'fas fa-restroom',
+        'description': 'Nha ve sinh sach se.',
+        'order': 5,
+    },
+    {
+        'name': 'Đặt bàn trước',
+        'icon': 'fas fa-calendar-check',
+        'description': 'Nhan dat ban truoc.',
+        'order': 6,
+    },
+    {
+        'name': 'Giao hàng',
+        'icon': 'fas fa-motorcycle',
+        'description': 'Ho tro giao hang.',
+        'order': 7,
+    },
+    {
+        'name': 'Có bàn cao',
+        'icon': 'fas fa-chair',
+        'description': 'Co ban cao de ngoi lam viec.',
+        'order': 8,
+    },
+    {
+        'name': 'Nhạc sống',
+        'icon': 'fas fa-music',
+        'description': 'Co chuong trinh nhac song.',
+        'order': 9,
+    },
+]
 
 
 # ============================================
@@ -59,22 +146,15 @@ ACTIVE_RESERVATION_STATUSES = ['pending', 'confirmed', 'waiting']
 def validate_booking_time(requested_time):
     """
     Kiểm tra thời gian đặt bàn có hợp lệ không
-    - Không được đặt sớm quá 90 phút
     - Không được đặt ở quá khứ
     
     Returns: (is_valid, error_message)
     """
     now = timezone.now()
-    min_booking_time = now + timedelta(minutes=ADVANCE_BOOKING_MINUTES)
     
     # Kiểm tra thời gian đặt ở quá khứ
     if requested_time < now:
         return False, "⚠️ Thời gian đặt không thể ở quá khứ!"
-    
-    # Kiểm tra đặt sớm quá 90 phút
-    if requested_time < min_booking_time:
-        remaining_minutes = int((min_booking_time - now).total_seconds() / 60)
-        return False, f"⚠️ Vui lòng đặt bàn trễ hơn {ADVANCE_BOOKING_MINUTES} phút. Thời gian sớm nhất có thể: {min_booking_time.strftime('%d/%m/%Y %H:%M')}"
     
     return True, ""
 
@@ -125,57 +205,100 @@ def parse_user_datetime(raw_value):
 
 
 def create_default_tables_for_restaurant(restaurant):
-    if restaurant.tables.exists():
-        return
+    existing_tables = {
+        table.table_number: table
+        for table in restaurant.tables.all()
+    }
+    tables_to_create = []
+    tables_to_update = []
 
-    Table.objects.bulk_create([
-        Table(restaurant=restaurant, table_number='Bàn 1', capacity=4, is_available=True),
-        Table(restaurant=restaurant, table_number='Bàn 2', capacity=4, is_available=True),
-        Table(restaurant=restaurant, table_number='Bàn 3', capacity=4, is_available=True),
-        Table(restaurant=restaurant, table_number='Bàn 4', capacity=8, is_available=True),
-    ])
-
-
-def compute_table_available_from(table, requested_time):
-    slot_delta = timedelta(minutes=BOOKING_SLOT_MINUTES)
-
-    reservations = Reservation.objects.filter(
-        table=table,
-        status__in=ACTIVE_RESERVATION_STATUSES
-    ).order_by('booking_time')
-
-    available_from = requested_time
-
-    for reservation in reservations:
-        reservation_start = reservation.booking_time
-        reservation_end = reservation.booking_time + slot_delta
-
-        if reservation_end <= available_from:
+    for table_number, capacity in STANDARD_TABLE_LAYOUT:
+        table = existing_tables.get(table_number)
+        if table is None:
+            tables_to_create.append(
+                Table(
+                    restaurant=restaurant,
+                    table_number=table_number,
+                    capacity=capacity,
+                    is_available=True,
+                )
+            )
             continue
 
-        if reservation_start <= available_from < reservation_end:
-            available_from = reservation_end
+        should_update = False
+        if table.capacity != capacity:
+            table.capacity = capacity
+            should_update = True
 
-    return available_from
+        if should_update:
+            tables_to_update.append(table)
+
+    if tables_to_create:
+        Table.objects.bulk_create(tables_to_create)
+    if tables_to_update:
+        Table.objects.bulk_update(tables_to_update, ['capacity'])
 
 
-def find_best_table_for_booking(restaurant, people, requested_time):
+def ensure_default_amenity_categories():
+    existing_names = set(
+        AmenityCategory.objects.filter(
+            name__in=[item['name'] for item in DEFAULT_AMENITY_CATEGORIES]
+        ).values_list('name', flat=True)
+    )
+
+    missing_categories = [
+        AmenityCategory(**item)
+        for item in DEFAULT_AMENITY_CATEGORIES
+        if item['name'] not in existing_names
+    ]
+    if missing_categories:
+        AmenityCategory.objects.bulk_create(missing_categories)
+
+
+def expire_overdue_reservations(restaurant=None):
+    expired_before = timezone.now() - timedelta(minutes=AUTO_CANCEL_AFTER_MINUTES)
+    expired_qs = Reservation.objects.filter(
+        status__in=ACTIVE_RESERVATION_STATUSES,
+        booking_time__lt=expired_before,
+    )
+    if restaurant is not None:
+        expired_qs = expired_qs.filter(table__restaurant=restaurant)
+
+    return expired_qs.update(status='cancelled', queue_position=0)
+
+
+def is_table_available_for_booking(table, requested_time):
+    requested_end_time = requested_time + timedelta(minutes=BOOKING_DURATION_MINUTES)
+    earliest_possible_overlap = requested_time - timedelta(minutes=BOOKING_DURATION_MINUTES)
+
+    candidate_reservations = Reservation.objects.filter(
+        table=table,
+        status__in=ACTIVE_RESERVATION_STATUSES,
+        booking_time__lt=requested_end_time,
+        booking_time__gt=earliest_possible_overlap,
+    ).only('booking_time')
+
+    for reservation in candidate_reservations:
+        existing_start = reservation.booking_time
+        existing_end = existing_start + timedelta(minutes=BOOKING_DURATION_MINUTES)
+        if requested_time < existing_end and existing_start < requested_end_time:
+            return False
+
+    return True
+
+
+def find_available_table_for_booking(restaurant, people, requested_time):
     candidate_tables = restaurant.tables.filter(
+        table_number__in=STANDARD_TABLE_NUMBERS,
         is_available=True,
         capacity__gte=people
     ).order_by('capacity', 'id')
 
-    best_table = None
-    best_time = None
-
     for table in candidate_tables:
-        available_from = compute_table_available_from(table, requested_time)
+        if is_table_available_for_booking(table, requested_time):
+            return table
 
-        if best_time is None or available_from < best_time:
-            best_table = table
-            best_time = available_from
-
-    return best_table, best_time
+    return None
 
 
 # ============================================
@@ -183,6 +306,8 @@ def find_best_table_for_booking(restaurant, people, requested_time):
 # ============================================
 
 def index(request):
+    ensure_default_amenity_categories()
+
     districts = Restaurant.DISTRICT_CHOICES
 
     representative_qs = Dish.objects.filter(
@@ -252,6 +377,17 @@ def index(request):
     return render(request, 'restaurants/index.html', context)
 
 
+def about_page(request):
+    context = {
+        'total_restaurants': Restaurant.objects.count(),
+        'total_dishes': Dish.objects.count(),
+        'total_feedbacks': Feedback.objects.count(),
+        'total_users': User.objects.filter(is_active=True).count(),
+        'total_reservations': Reservation.objects.count(),
+    }
+    return render(request, 'restaurants/about.html', context)
+
+
 def restaurant_detail(request, pk):
     restaurant = get_object_or_404(
         Restaurant.objects.prefetch_related('gallery_images', 'feedbacks'),
@@ -292,8 +428,8 @@ def user_map(request):
 
 
 def map_detail(request, pk):
-    restaurant = get_object_or_404(Restaurant, pk=pk)
-    return render(request, 'restaurants/user_map.html', {'restaurant': restaurant})
+    get_object_or_404(Restaurant, pk=pk)
+    return redirect(f"{reverse('user_map')}?restaurant_id={pk}&auto_route=1")
 
 
 def map_view(request):
@@ -315,6 +451,7 @@ def register_view(request):
             user = form.save(commit=False)
             user.is_active = False  # Chưa kích hoạt cho đến khi xác thực email
             user.save()
+            request.session['pending_verification_email'] = user.email
             
             # Tạo UserProfile và gửi email xác thực
             send_verification_email(request, user)
@@ -391,7 +528,7 @@ def send_verification_email(request, user):
     send_mail(
         subject,
         strip_tags(html_message),
-        'noreply@giseatery.com',
+        settings.DEFAULT_FROM_EMAIL,
         [user.email],
         html_message=html_message,
         fail_silently=False,
@@ -439,7 +576,12 @@ def verification_pending(request):
     """
     Trang chờ xác thực email
     """
-    return render(request, 'restaurants/verification_pending.html')
+    context = {
+        'pending_email': request.session.get('pending_verification_email', ''),
+        'is_console_email_backend': settings.EMAIL_BACKEND == 'django.core.mail.backends.console.EmailBackend',
+        'is_file_email_backend': settings.EMAIL_BACKEND == 'django.core.mail.backends.filebased.EmailBackend',
+    }
+    return render(request, 'restaurants/verification_pending.html', context)
 
 
 @csrf_exempt
@@ -604,6 +746,8 @@ def reset_password(request, token):
 
 @login_required(login_url='login')
 def user_booking_history(request):
+    expire_overdue_reservations()
+
     my_bookings = Reservation.objects.filter(
         user=request.user
     ).select_related('table__restaurant').order_by('-booking_time')
@@ -711,25 +855,194 @@ def api_nearby_restaurants(request):
         return JsonResponse({'error': str(e)}, status=400)
 
 
+def api_export_nearby_excel(request):
+    """
+    Xuất file Excel theo bán kính được chọn trên giao diện bản đồ
+    (giới hạn tối đa 15km), kèm toàn bộ món ăn của các quán trong bán kính đó.
+    """
+    try:
+        lat = float(request.GET.get('lat'))
+        lng = float(request.GET.get('lng'))
+    except (TypeError, ValueError):
+        return JsonResponse({'error': 'Thiếu hoặc sai định dạng tọa độ lat/lng'}, status=400)
+    raw_radius = (request.GET.get('radius') or '').strip()
+    if not raw_radius:
+        raw_radius = (request.GET.get('radii') or '').split(',')[0].strip()
+
+    try:
+        radius = float(raw_radius) if raw_radius else 5.0
+    except ValueError:
+        radius = 5.0
+
+    if radius <= 0:
+        radius = 5.0
+
+    max_export_radius = 15.0
+    if radius > max_export_radius:
+        radius = max_export_radius
+
+    radius = round(radius, 2)
+    radius_label = f'{radius:g}'.replace('.', '_')
+    user_location = Point(lng, lat, srid=4326)
+
+    workbook = Workbook()
+    summary_sheet = workbook.active
+    summary_sheet.title = 'Tong_quan'
+
+    # =========================
+    # Excel styles
+    # =========================
+    header_fill = PatternFill(start_color='CF2127', end_color='CF2127', fill_type='solid')
+    header_font = Font(color='FFFFFF', bold=True, size=11)
+    title_font = Font(color='CF2127', bold=True, size=13)
+    content_font = Font(size=10)
+    center_align = Alignment(horizontal='center', vertical='center')
+    left_align = Alignment(horizontal='left', vertical='top', wrap_text=True)
+    thin_border = Border(
+        left=Side(style='thin', color='D9D9D9'),
+        right=Side(style='thin', color='D9D9D9'),
+        top=Side(style='thin', color='D9D9D9'),
+        bottom=Side(style='thin', color='D9D9D9'),
+    )
+
+    restaurants = list(
+        Restaurant.objects.prefetch_related('dishes').filter(
+            location__distance_lte=(user_location, D(km=radius))
+        ).annotate(
+            distance=Distance('location', user_location)
+        ).order_by('distance', 'name')
+    )
+    restaurant_dishes_map = {
+        restaurant.id: list(restaurant.dishes.all().order_by('name'))
+        for restaurant in restaurants
+    }
+    total_dishes_in_radius = sum(len(dishes) for dishes in restaurant_dishes_map.values())
+
+    # =========================
+    # Sheet 1: Tổng quan
+    # =========================
+    summary_sheet.merge_cells('A1:B1')
+    summary_sheet['A1'] = 'BÁO CÁO DANH SÁCH QUÁN ĂN'
+    summary_sheet['A1'].font = title_font
+    summary_sheet['A1'].alignment = center_align
+
+    summary_sheet.append(['Thông tin', 'Giá trị'])
+    summary_sheet.append(['Vị trí tham chiếu', f'{lat:.6f}, {lng:.6f}'])
+    summary_sheet.append(['Bán kính xuất', f'{radius:g} km'])
+    summary_sheet.append(['Thời gian xuất', timezone.localtime().strftime('%d/%m/%Y %H:%M:%S')])
+    summary_sheet.append([f'Kết quả trong {radius:g} km', f'{len(restaurants)} quán, {total_dishes_in_radius} món'])
+
+    summary_sheet.column_dimensions['A'].width = 28
+    summary_sheet.column_dimensions['B'].width = 45
+
+    for cell in summary_sheet[2]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = center_align
+        cell.border = thin_border
+
+    for row in summary_sheet.iter_rows(min_row=3, max_row=6, min_col=1, max_col=2):
+        for cell in row:
+            cell.font = content_font
+            cell.alignment = left_align
+            cell.border = thin_border
+
+    # =========================
+    # Sheet 2: Bảng đẹp theo cột
+    # =========================
+    restaurant_sheet = workbook.create_sheet(title=f'{radius_label}km_quan')
+    restaurant_sheet.append([
+        'STT',
+        'Tên quán',
+        'Địa chỉ',
+        'Quận/Huyện',
+        'Khoảng cách (km)',
+        'Số món',
+        'Các món ăn',
+    ])
+
+    if not restaurants:
+        restaurant_sheet.append([
+            '',
+            'Không có quán ăn trong bán kính này',
+            '',
+            '',
+            '',
+            '',
+            '',
+        ])
+    else:
+        for index, restaurant in enumerate(restaurants, start=1):
+            dishes = restaurant_dishes_map.get(restaurant.id, [])
+            dish_lines = []
+            for dish in dishes:
+                dish_price = f"{int(dish.price):,}đ" if dish.price is not None else 'Chưa cập nhật giá'
+                dish_status = 'Còn bán' if dish.is_available else 'Tạm ngưng'
+                dish_lines.append(f"- {dish.name} ({dish_price}, {dish_status})")
+
+            restaurant_sheet.append([
+                index,
+                restaurant.name,
+                restaurant.address,
+                restaurant.get_district_display(),
+                round(restaurant.distance.km, 2) if restaurant.distance else '',
+                len(dishes),
+                '\n'.join(dish_lines) if dish_lines else '(Quán chưa có món ăn)',
+            ])
+
+    # Style header
+    for cell in restaurant_sheet[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = center_align
+        cell.border = thin_border
+
+    # Style content
+    for row in restaurant_sheet.iter_rows(min_row=2, max_row=restaurant_sheet.max_row, min_col=1, max_col=7):
+        for cell in row:
+            cell.font = content_font
+            cell.alignment = left_align
+            cell.border = thin_border
+
+    # Đặt chiều rộng cột đẹp và dễ đọc
+    preferred_widths = {
+        1: 8,   # STT
+        2: 30,  # Tên quán
+        3: 45,  # Địa chỉ
+        4: 16,  # Quận/Huyện
+        5: 16,  # Khoảng cách
+        6: 10,  # Số món
+        7: 78,  # Các món ăn
+    }
+    for col_idx, width in preferred_widths.items():
+        restaurant_sheet.column_dimensions[get_column_letter(col_idx)].width = width
+
+    # Chiều cao dòng tự nhiên hơn cho cột "Các món ăn"
+    for row_idx in range(2, restaurant_sheet.max_row + 1):
+        dish_text = restaurant_sheet.cell(row=row_idx, column=7).value or ''
+        line_count = max(1, len(str(dish_text).split('\n')))
+        restaurant_sheet.row_dimensions[row_idx].height = min(180, 20 + (line_count - 1) * 15)
+
+    excel_buffer = BytesIO()
+    workbook.save(excel_buffer)
+    excel_buffer.seek(0)
+
+    response = HttpResponse(
+        excel_buffer.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    filename = f'danh_sach_quan_an_{timezone.localtime().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
 @csrf_exempt
 def api_book_table(request):
     """
-    API đặt bàn với các tính năng:
-    - Chọn bàn theo số người
-    - Chọn các món ăn (tùy chọn)
-    - Kiểm tra bàn trống
-    - Kiểm tra quy định không đặt sớm quá 90 phút
-    - Hỗ trợ hàng chờ nếu bàn bận
-    
-    Expected POST parameters:
-    - restaurant_id: ID nhà hàng
-    - name: Tên khách hàng
-    - phone: Số điện thoại (tùy chọn)
-    - booking_time: Thời gian đặt (YYYY-MM-DD HH:MM hoặc ISO format)
-    - people: Số người (mặc định 4)
-    - dish_ids[]: Danh sách ID các món ăn (tùy chọn)
-    - quantities[]: Số lượng từng món (tùy chọn)
-    - note: Ghi chú (tùy chọn)
+    API đặt bàn:
+    - Chuẩn hóa số bàn mặc định theo từng quán
+    - Khóa bàn trong 30 phút theo thời gian đặt
+    - Tự hủy các đơn quá hạn 30 phút để giải phóng bàn
     """
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Yêu cầu không hợp lệ'})
@@ -742,64 +1055,60 @@ def api_book_table(request):
         people = int(request.POST.get('people', 4))
         note = request.POST.get('note', '').strip()
 
-        # Validation
         if not customer_name:
             return JsonResponse({'status': 'error', 'message': 'Vui lòng nhập tên khách hàng!'}, status=400)
-        
+
         if people < 1 or people > 20:
             return JsonResponse({'status': 'error', 'message': 'Số người phải từ 1 đến 20!'}, status=400)
 
-        # Lấy nhà hàng
         restaurant = Restaurant.objects.get(id=restaurant_id)
 
-        # Tạo bàn mặc định nếu chưa có
-        if not restaurant.tables.exists():
-            create_default_tables_for_restaurant(restaurant)
+        # Đảm bảo layout bàn tiêu chuẩn: 4 bàn 4 ghế + 2 bàn 10 ghế.
+        create_default_tables_for_restaurant(restaurant)
 
-        # Parse thời gian
         requested_time = parse_user_datetime(booking_time_str)
         if requested_time is None:
             return JsonResponse({'status': 'error', 'message': 'Thời gian đặt bàn không hợp lệ.'}, status=400)
 
-        # ✅ Kiểm tra quy định 90 phút
         is_valid_time, error_msg = validate_booking_time(requested_time)
         if not is_valid_time:
             return JsonResponse({'status': 'error', 'message': error_msg}, status=400)
 
-        # ✅ Tìm bàn trống phù hợp
-        best_table, available_from = find_best_table_for_booking(
-            restaurant=restaurant,
-            people=people,
-            requested_time=requested_time
+        # Tự động hủy các đơn quá hạn 30 phút trước khi tìm bàn trống.
+        expire_overdue_reservations(restaurant)
+
+        requested_end_time = requested_time + timedelta(minutes=BOOKING_DURATION_MINUTES)
+
+        candidate_tables = list(
+            restaurant.tables.filter(
+                table_number__in=STANDARD_TABLE_NUMBERS,
+                is_available=True,
+                capacity__gte=people
+            ).order_by('capacity', 'id')
         )
 
-        if best_table is None:
+        available_tables = [
+            table for table in candidate_tables
+            if is_table_available_for_booking(table, requested_time)
+        ]
+
+        if not available_tables:
             return JsonResponse({
                 'status': 'error',
-                'message': '❌ Không có bàn phù hợp với số lượng khách này. Vui lòng chọn thời gian khác!'
+                'message': 'Hết bàn trong khung giờ này. Vui lòng chọn giờ khác!'
             }, status=400)
 
-        # Kiểm tra có phải hàng chờ không
-        is_waiting = available_from > requested_time
-        queue_position = 0
+        table = available_tables[0]
 
-        if is_waiting:
-            queue_position = Reservation.objects.filter(
-                table=best_table,
-                booking_time=available_from,
-                status='waiting'
-            ).count() + 1
-
-        # Tạo đơn đặt bàn
         reservation = Reservation(
-            table=best_table,
+            table=table,
             customer_name=customer_name,
             customer_phone=customer_phone,
-            booking_time=available_from,
+            booking_time=requested_time,
             number_of_people=people,
             note=note,
-            status='waiting' if is_waiting else 'pending',
-            queue_position=queue_position
+            status='pending',
+            queue_position=0,
         )
 
         if request.user.is_authenticated:
@@ -807,7 +1116,6 @@ def api_book_table(request):
 
         reservation.save()
 
-        # ✅ Xử lý thêm các món ăn (ReservationItem)
         dish_ids = request.POST.getlist('dish_ids[]')
         quantities = request.POST.getlist('quantities[]')
         total_price = 0
@@ -819,7 +1127,6 @@ def api_book_table(request):
                 except (ValueError, TypeError):
                     qty = 1
 
-                # Lấy món ăn
                 dish = Dish.objects.filter(
                     id=dish_id,
                     restaurant=restaurant,
@@ -827,7 +1134,6 @@ def api_book_table(request):
                 ).first()
 
                 if dish:
-                    # Tạo ReservationItem
                     reservation_item, created = ReservationItem.objects.get_or_create(
                         reservation=reservation,
                         dish=dish,
@@ -836,42 +1142,34 @@ def api_book_table(request):
                     if not created:
                         reservation_item.quantity = qty
                         reservation_item.save()
-                    
+
                     total_price += dish.price * qty
 
-        # Gửi email xác nhận (nếu có email)
         if customer_phone or (request.user.is_authenticated and request.user.email):
             try:
                 send_booking_confirmation_email(reservation)
             except Exception as e:
-                print(f"Lỗi gửi email đặt bàn: {e}")
-
-        # Phản hồi thành công
-        if is_waiting:
-            message = (
-                f"✅ Hiện đã hết bàn đúng giờ bạn chọn. "
-                f"Bạn được đưa vào hàng chờ tại {best_table.table_number} "
-                f"lúc {available_from.strftime('%d/%m/%Y %H:%M')}. "
-                f"Số thứ tự chờ: {queue_position}."
-            )
-            booking_type = 'waiting'
-        else:
-            message = f"✅ Thành công! Đơn đặt tại {restaurant.name} đang chờ duyệt."
-            booking_type = 'normal'
+                print(f'Lỗi gửi email đặt bàn: {e}')
 
         return JsonResponse({
             'status': 'success',
-            'booking_type': booking_type,
+            'booking_type': 'normal',
             'reservation_id': reservation.id,
-            'message': message,
+            'message': (
+                f'Đặt bàn thành công tại {restaurant.name}. '
+                f'Khung giờ của bạn: {requested_time.strftime("%H:%M")} - {requested_end_time.strftime("%H:%M")} '
+                f'({BOOKING_DURATION_MINUTES} phút).'
+            ),
             'total_price': int(total_price),
-            'items_count': len([d for d in dish_ids if d])
+            'items_count': len([d for d in dish_ids if d]),
+            'table_number': table.table_number,
+            'booking_end_time': requested_end_time.isoformat(),
         })
 
     except Restaurant.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Nhà hàng không tồn tại!'}, status=404)
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': f'❌ Lỗi server: {str(e)}'}, status=500)
+        return JsonResponse({'status': 'error', 'message': f'Lỗi server: {str(e)}'}, status=500)
 
 
 @csrf_exempt
@@ -966,6 +1264,95 @@ def admin_dashboard(request):
 
 
 @user_passes_test(lambda u: u.is_superuser)
+def admin_user_accounts(request):
+    query = (request.GET.get('q') or '').strip()
+    status_filter = (request.GET.get('status') or 'all').strip()
+
+    users = User.objects.annotate(
+        booking_count=Count('reservations', distinct=True)
+    ).order_by('-date_joined')
+
+    if query:
+        users = users.filter(
+            Q(username__icontains=query) |
+            Q(email__icontains=query) |
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query)
+        )
+
+    if status_filter == 'active':
+        users = users.filter(is_active=True)
+    elif status_filter == 'inactive':
+        users = users.filter(is_active=False)
+    elif status_filter == 'verified':
+        users = users.filter(profile__email_verified=True)
+    elif status_filter == 'unverified':
+        users = users.exclude(profile__email_verified=True)
+    elif status_filter == 'admin':
+        users = users.filter(is_superuser=True)
+
+    for user in users:
+        try:
+            user.is_email_verified = user.profile.email_verified
+        except UserProfile.DoesNotExist:
+            user.is_email_verified = False
+
+    context = {
+        'users': users,
+        'query': query,
+        'status_filter': status_filter,
+        'active_page': 'accounts',
+        'stats_total': User.objects.count(),
+        'stats_active': User.objects.filter(is_active=True).count(),
+        'stats_verified': UserProfile.objects.filter(email_verified=True).count(),
+        'stats_admin': User.objects.filter(is_superuser=True).count(),
+    }
+    return render(request, 'restaurants/admin_user_accounts.html', context)
+
+
+@user_passes_test(lambda u: u.is_superuser)
+def admin_user_account_action(request, user_id, action):
+    target_user = get_object_or_404(User, pk=user_id)
+    redirect_to = request.META.get('HTTP_REFERER') or reverse('admin_user_accounts')
+
+    if action == 'activate':
+        target_user.is_active = True
+        target_user.save(update_fields=['is_active'])
+        flash_msg.success(request, f"Da kich hoat tai khoan '{target_user.username}'.")
+        return redirect(redirect_to)
+
+    if action == 'deactivate':
+        if target_user.id == request.user.id:
+            flash_msg.error(request, 'Khong the tu khoa tai khoan dang dang nhap.')
+            return redirect(redirect_to)
+        target_user.is_active = False
+        target_user.save(update_fields=['is_active'])
+        flash_msg.success(request, f"Da khoa tai khoan '{target_user.username}'.")
+        return redirect(redirect_to)
+
+    if action in ['verify', 'unverify']:
+        profile, _ = UserProfile.objects.get_or_create(user=target_user)
+        is_verified = action == 'verify'
+        profile.email_verified = is_verified
+        if is_verified:
+            profile.email_verification_token = ''
+            profile.email_verification_expires = None
+            if not target_user.is_active:
+                target_user.is_active = True
+                target_user.save(update_fields=['is_active'])
+        profile.save(update_fields=['email_verified', 'email_verification_token', 'email_verification_expires'])
+
+        if is_verified:
+            flash_msg.success(request, f"Da xac minh email cho '{target_user.username}'.")
+        else:
+            flash_msg.warning(request, f"Da bo xac minh email cua '{target_user.username}'.")
+        return redirect(redirect_to)
+
+    flash_msg.error(request, 'Hanh dong khong hop le.')
+    return redirect(redirect_to)
+
+
+@user_passes_test(lambda u: u.is_superuser)
 def admin_restaurant_list(request):
     restaurants = Restaurant.objects.prefetch_related('gallery_images').all().order_by('-created_at')
     for restaurant in restaurants:
@@ -980,12 +1367,50 @@ def admin_restaurant_list(request):
 
 @user_passes_test(lambda u: u.is_superuser)
 def admin_restaurant_form(request, pk=None):
+    ensure_default_amenity_categories()
+
     if pk:
         restaurant = get_object_or_404(Restaurant.objects.prefetch_related('gallery_images'), pk=pk)
         action_title = "CẬP NHẬT QUÁN ĂN"
     else:
         restaurant = None
         action_title = "THÊM QUÁN MỚI"
+
+    def build_context(selected_amenity_ids=None, amenity_notes_override=None):
+        amenity_categories = AmenityCategory.objects.all().order_by('order')
+
+        if selected_amenity_ids is None:
+            if restaurant:
+                selected_amenity_ids = list(
+                    restaurant.amenities.values_list('category_id', flat=True)
+                )
+            else:
+                selected_amenity_ids = []
+
+        normalized_ids = []
+        for amenity_id in selected_amenity_ids:
+            try:
+                normalized_ids.append(int(amenity_id))
+            except (TypeError, ValueError):
+                continue
+
+        if amenity_notes_override is None:
+            amenity_notes = {}
+            if restaurant:
+                for amenity in restaurant.amenities.all():
+                    amenity_notes[amenity.category_id] = amenity.note
+        else:
+            amenity_notes = amenity_notes_override
+
+        return {
+            'restaurant': restaurant,
+            'districts': Restaurant.DISTRICT_CHOICES,
+            'action_title': action_title,
+            'active_page': 'restaurants',
+            'amenity_categories': amenity_categories,
+            'restaurant_amenity_ids': normalized_ids,
+            'amenity_notes': amenity_notes,
+        }
 
     if request.method == "POST":
         name = request.POST.get('name')
@@ -996,9 +1421,37 @@ def admin_restaurant_form(request, pk=None):
         image = request.FILES.get('image')
         gallery_images = request.FILES.getlist('gallery_images')
         is_pickup_available = request.POST.get('is_pickup_available') == 'on'
+        amenity_ids = request.POST.getlist('amenities')
 
-        lat = float(request.POST.get('lat'))
-        lng = float(request.POST.get('lng'))
+        amenity_notes_from_post = {}
+        for amenity_id in amenity_ids:
+            try:
+                amenity_notes_from_post[int(amenity_id)] = request.POST.get(
+                    f'amenity_notes_{amenity_id}',
+                    ''
+                ).strip()
+            except (TypeError, ValueError):
+                continue
+
+        lat_raw = (request.POST.get('lat') or '').strip()
+        lng_raw = (request.POST.get('lng') or '').strip()
+        try:
+            lat = float(lat_raw)
+            lng = float(lng_raw)
+        except (TypeError, ValueError):
+            flash_msg.error(
+                request,
+                "Vui lòng chọn vị trí hợp lệ trên bản đồ (nhấp lên bản đồ hoặc bấm tìm địa chỉ trước khi lưu)."
+            )
+            return render(
+                request,
+                'restaurants/admin_form.html',
+                build_context(
+                    selected_amenity_ids=amenity_ids,
+                    amenity_notes_override=amenity_notes_from_post
+                )
+            )
+
         pnt = Point(lng, lat, srid=4326)
 
         if restaurant:
@@ -1013,8 +1466,7 @@ def admin_restaurant_form(request, pk=None):
                 restaurant.image = image
             restaurant.save()
 
-            if not restaurant.tables.exists():
-                create_default_tables_for_restaurant(restaurant)
+            create_default_tables_for_restaurant(restaurant)
 
             for img in gallery_images:
                 RestaurantImage.objects.create(
@@ -1052,7 +1504,6 @@ def admin_restaurant_form(request, pk=None):
         restaurant.amenities.all().delete()
 
         # Add selected amenities
-        amenity_ids = request.POST.getlist('amenities')
         for amenity_id in amenity_ids:
             notes = request.POST.get(f'amenity_notes_{amenity_id}', '').strip()
             RestaurantAmenity.objects.create(
@@ -1064,28 +1515,7 @@ def admin_restaurant_form(request, pk=None):
 
         return redirect('admin_restaurant_list')
 
-    # Get amenity categories and existing amenity IDs for context
-    amenity_categories = AmenityCategory.objects.all().order_by('order')
-    restaurant_amenity_ids = []
-    amenity_notes = {}
-    if restaurant:
-        restaurant_amenity_ids = list(
-            restaurant.amenities.values_list('category_id', flat=True)
-        )
-        # Get notes for each amenity
-        for amenity in restaurant.amenities.all():
-            amenity_notes[amenity.category_id] = amenity.note
-
-    context = {
-        'restaurant': restaurant,
-        'districts': Restaurant.DISTRICT_CHOICES,
-        'action_title': action_title,
-        'active_page': 'restaurants',
-        'amenity_categories': amenity_categories,
-        'restaurant_amenity_ids': restaurant_amenity_ids,
-        'amenity_notes': amenity_notes,
-    }
-    return render(request, 'restaurants/admin_form.html', context)
+    return render(request, 'restaurants/admin_form.html', build_context())
 
 
 @user_passes_test(lambda u: u.is_superuser)
@@ -1254,6 +1684,8 @@ def admin_dish_delete(request, dish_id):
 @user_passes_test(lambda u: u.is_superuser)
 def admin_booking_list(request, pk):
     restaurant = get_object_or_404(Restaurant, pk=pk)
+    expire_overdue_reservations(restaurant)
+
     bookings = Reservation.objects.filter(
         table__restaurant=restaurant
     ).order_by('-booking_time')
@@ -1262,6 +1694,8 @@ def admin_booking_list(request, pk):
 
 @user_passes_test(lambda u: u.is_superuser)
 def admin_all_bookings(request):
+    expire_overdue_reservations()
+
     bookings = Reservation.objects.all().select_related('table__restaurant').order_by('-booking_time')
 
     selected_restaurant_id = request.GET.get('restaurant_id')
@@ -1299,6 +1733,11 @@ def admin_update_booking_status(request, booking_id, status):
 
 def feedback_form(request, pk):
     restaurant = get_object_or_404(Restaurant, pk=pk)
+    duplicate_feedback_message = (
+        "Email này đã gửi đánh giá trước đó.\n"
+        "Mỗi Gmail chỉ được gửi 1 đánh giá trên hệ thống.\n"
+        "Vui lòng dùng Gmail khác nếu muốn gửi thêm phản hồi."
+    )
 
     if request.method == 'POST':
         customer_name = request.POST.get('customer_name', '').strip()
@@ -1306,17 +1745,29 @@ def feedback_form(request, pk):
         rating = request.POST.get('rating')
         message = request.POST.get('message', '').strip()
 
-        if Feedback.objects.filter(restaurant=restaurant, customer_email__iexact=customer_email).exists():
-            flash_msg.error(request, "Email này đã đánh giá quán này rồi. Mỗi email chỉ được đánh giá 1 lần.")
+        # Mỗi Gmail chỉ được đánh giá 1 lần trên toàn hệ thống.
+        if Feedback.objects.filter(customer_email__iexact=customer_email).exists():
+            flash_msg.error(
+                request,
+                duplicate_feedback_message
+            )
             return redirect('feedback_form', pk=pk)
 
-        feedback = Feedback.objects.create(
-            restaurant=restaurant,
-            customer_name=customer_name,
-            customer_email=customer_email,
-            rating=rating,
-            message=message
-        )
+        try:
+            with transaction.atomic():
+                feedback = Feedback.objects.create(
+                    restaurant=restaurant,
+                    customer_name=customer_name,
+                    customer_email=customer_email,
+                    rating=rating,
+                    message=message
+                )
+        except IntegrityError:
+            flash_msg.error(
+                request,
+                duplicate_feedback_message
+            )
+            return redirect('feedback_form', pk=pk)
 
         try:
             send_feedback_email_to_admin(feedback)
@@ -1341,13 +1792,15 @@ def feedback_form(request, pk):
 @user_passes_test(lambda u: u.is_superuser)
 def admin_feedback_list(request, pk):
     restaurant = get_object_or_404(Restaurant, pk=pk)
-    feedbacks = restaurant.feedbacks.all()
+    feedbacks = restaurant.feedbacks.all().order_by('-created_at')
+    unread_count = feedbacks.filter(is_read=False).count()
 
     context = {
         'restaurant': restaurant,
         'feedbacks': feedbacks,
         'total_feedbacks': feedbacks.count(),
-        'active_page': 'feedbacks'
+        'unread_count': unread_count,
+        'active_page': 'all_feedbacks'
     }
     return render(request, 'restaurants/admin_feedback_list.html', context)
 
@@ -1355,6 +1808,15 @@ def admin_feedback_list(request, pk):
 @user_passes_test(lambda u: u.is_superuser)
 def admin_all_feedbacks(request):
     feedbacks = Feedback.objects.all().select_related('restaurant').order_by('-created_at')
+
+    query = (request.GET.get('q') or '').strip()
+    if query:
+        feedbacks = feedbacks.filter(
+            Q(customer_name__icontains=query) |
+            Q(customer_email__icontains=query) |
+            Q(message__icontains=query) |
+            Q(restaurant__name__icontains=query)
+        )
 
     restaurant_id = request.GET.get('restaurant_id')
     restaurant_name = None
@@ -1366,15 +1828,25 @@ def admin_all_feedbacks(request):
     if rating:
         feedbacks = feedbacks.filter(rating=rating)
 
+    read_status = (request.GET.get('read_status') or 'all').strip()
+    if read_status == 'read':
+        feedbacks = feedbacks.filter(is_read=True)
+    elif read_status == 'unread':
+        feedbacks = feedbacks.filter(is_read=False)
+
     all_restaurants = Restaurant.objects.all().order_by('name')
 
     context = {
         'feedbacks': feedbacks,
         'all_restaurants': all_restaurants,
+        'query': query,
         'restaurant_id': restaurant_id,
         'restaurant_name': restaurant_name,
         'rating': rating,
-        'active_page': 'feedbacks'
+        'read_status': read_status,
+        'total_feedbacks': feedbacks.count(),
+        'unread_feedbacks': feedbacks.filter(is_read=False).count(),
+        'active_page': 'all_feedbacks'
     }
     return render(request, 'restaurants/admin_all_feedbacks.html', context)
 
@@ -1383,9 +1855,118 @@ def admin_all_feedbacks(request):
 def admin_mark_feedback_as_read(request, feedback_id):
     feedback = get_object_or_404(Feedback, pk=feedback_id)
     feedback.is_read = True
-    feedback.save()
+    feedback.save(update_fields=['is_read'])
     flash_msg.success(request, "Đã đánh dấu phản hồi này là đã xem.")
-    return redirect('admin_feedback_list', pk=feedback.restaurant.pk)
+    redirect_to = request.META.get('HTTP_REFERER') or reverse('admin_feedback_list', kwargs={'pk': feedback.restaurant.pk})
+    return redirect(redirect_to)
+
+
+@user_passes_test(lambda u: u.is_superuser)
+def admin_feedback_action(request, feedback_id, action):
+    feedback = get_object_or_404(Feedback, pk=feedback_id)
+    redirect_to = request.META.get('HTTP_REFERER') or reverse('admin_all_feedbacks')
+
+    if action == 'read':
+        feedback.is_read = True
+        feedback.save(update_fields=['is_read'])
+        flash_msg.success(request, "Đã đánh dấu phản hồi là đã xem.")
+        return redirect(redirect_to)
+
+    if action == 'unread':
+        feedback.is_read = False
+        feedback.save(update_fields=['is_read'])
+        flash_msg.success(request, "Đã chuyển phản hồi về trạng thái chưa xem.")
+        return redirect(redirect_to)
+
+    if action == 'delete':
+        feedback.delete()
+        flash_msg.warning(request, "Đã xóa phản hồi.")
+        return redirect(redirect_to)
+
+    flash_msg.error(request, "Hành động không hợp lệ.")
+    return redirect(redirect_to)
+
+
+@user_passes_test(lambda u: u.is_superuser)
+def admin_amenity_list(request):
+    ensure_default_amenity_categories()
+
+    if request.method == 'POST':
+        amenity_id = request.POST.get('amenity_id')
+        name = (request.POST.get('name') or '').strip()
+        icon = (request.POST.get('icon') or '').strip()
+        description = (request.POST.get('description') or '').strip()
+        order_raw = (request.POST.get('order') or '0').strip()
+
+        if not name:
+            flash_msg.error(request, 'Tên tiện ích không được để trống.')
+            return redirect('admin_amenity_list')
+        if not icon:
+            flash_msg.error(request, 'Icon không được để trống.')
+            return redirect('admin_amenity_list')
+
+        try:
+            order = int(order_raw)
+        except ValueError:
+            order = 0
+
+        if amenity_id:
+            amenity = get_object_or_404(AmenityCategory, pk=amenity_id)
+            amenity.name = name
+            amenity.icon = icon
+            amenity.description = description
+            amenity.order = order
+            try:
+                amenity.save()
+                flash_msg.success(request, f"Đã cập nhật tiện ích '{name}'.")
+            except IntegrityError:
+                flash_msg.error(request, 'Tên tiện ích đã tồn tại. Vui lòng chọn tên khác.')
+            return redirect('admin_amenity_list')
+
+        try:
+            AmenityCategory.objects.create(
+                name=name,
+                icon=icon,
+                description=description,
+                order=order
+            )
+            flash_msg.success(request, f"Đã thêm tiện ích '{name}'.")
+        except IntegrityError:
+            flash_msg.error(request, 'Tên tiện ích đã tồn tại. Vui lòng chọn tên khác.')
+        return redirect('admin_amenity_list')
+
+    edit_id = request.GET.get('edit')
+    edit_item = None
+    if edit_id:
+        edit_item = get_object_or_404(AmenityCategory, pk=edit_id)
+
+    amenities = AmenityCategory.objects.annotate(
+        used_count=Count('restaurant_amenities')
+    ).order_by('order', 'name')
+
+    context = {
+        'amenities': amenities,
+        'edit_item': edit_item,
+        'icon_presets': AMENITY_ICON_PRESETS,
+        'active_page': 'amenities',
+    }
+    return render(request, 'restaurants/admin_amenity_list.html', context)
+
+
+@user_passes_test(lambda u: u.is_superuser)
+def admin_amenity_delete(request, amenity_id):
+    amenity = get_object_or_404(AmenityCategory, pk=amenity_id)
+    if amenity.restaurant_amenities.exists():
+        flash_msg.error(
+            request,
+            f"Không thể xóa '{amenity.name}' vì đã được gán cho quán ăn."
+        )
+        return redirect('admin_amenity_list')
+
+    amenity_name = amenity.name
+    amenity.delete()
+    flash_msg.warning(request, f"Đã xóa tiện ích '{amenity_name}'.")
+    return redirect('admin_amenity_list')
 
 
 def send_feedback_email_to_admin(feedback):
@@ -1436,8 +2017,8 @@ def send_feedback_email_to_admin(feedback):
     send_mail(
         subject=subject,
         message=plain_message,
-        from_email='noreply@giseatery.com',
-        recipient_list=['admin@giseatery.com'],
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[getattr(settings, 'FEEDBACK_NOTIFY_EMAIL', 'admin@giseatery.com')],
         html_message=html_message,
         fail_silently=False,
     )
@@ -1491,7 +2072,7 @@ def send_feedback_confirmation_email(feedback):
     send_mail(
         subject=subject,
         message=plain_message,
-        from_email='noreply@giseatery.com',
+        from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[feedback.customer_email],
         html_message=html_message,
         fail_silently=False,
@@ -1628,12 +2209,20 @@ def api_geocode_address(request):
             # Transform kết quả để match với frontend expectations
             formatted_results = []
             for result in results:
+                try:
+                    lat_value = float(result.get('lat'))
+                    lon_value = float(result.get('lon'))
+                except (TypeError, ValueError):
+                    continue
+
                 formatted_results.append({
-                    'lat': float(result.get('lat')),
-                    'lon': float(result.get('lon')),
+                    'lat': lat_value,
+                    'lon': lon_value,
+                    'lng': lon_value,  # Alias để frontend dùng lat/lng thống nhất
                     'address': result.get('display_name', ''),
                     'display_name': result.get('display_name', '')
                 })
+
             return JsonResponse(formatted_results, safe=False)
         else:
             return JsonResponse([], safe=False)
@@ -1689,3 +2278,6 @@ def api_reverse_geocode_address(request):
             'error': 'Không thể kết nối dịch vụ geocoding. Vui lòng thử lại.',
             'status': 'error'
         }, status=500)
+
+
+

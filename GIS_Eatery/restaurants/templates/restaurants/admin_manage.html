@@ -51,6 +51,9 @@
                             <a href="{% url 'admin_menu_list' r.pk %}" class="btn btn-sm btn-info text-white me-1" title="Quản lý Thực đơn">
                                 <i class="fas fa-book-open"></i> Menu
                             </a>
+                            <a href="{% url 'admin_feedback_list' r.pk %}" class="btn btn-sm btn-secondary me-1" title="Quản lý Đánh giá">
+                                <i class="fas fa-comments"></i> Đánh giá
+                            </a>
                             <a href="{% url 'admin_restaurant_edit' r.pk %}" class="btn btn-sm btn-primary">
                                 <i class="fas fa-edit"></i>
                             </a>

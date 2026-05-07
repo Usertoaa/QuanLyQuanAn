@@ -10,10 +10,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterModelOptions(
-            name='restaurantintroduction',
-            options={'ordering': ['-featured', '-created_at'], 'verbose_name': 'Bài giới thiệu quán ăn', 'verbose_name_plural': 'Bài giới thiệu quán ăn'},
-        ),
         migrations.RemoveConstraint(
             model_name='reservationitem',
             name='unique_reservation_dish',
@@ -21,27 +17,29 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='restaurant',
             name='email',
-            field=models.EmailField(blank=True, max_length=254, verbose_name='Email'),
+            field=models.EmailField(
+                blank=True,
+                max_length=254,
+                verbose_name='Email',
+            ),
         ),
         migrations.AddField(
             model_name='restaurant',
             name='opening_hours',
-            field=models.CharField(blank=True, max_length=100, verbose_name='Giờ hoạt động'),
+            field=models.CharField(
+                blank=True,
+                max_length=100,
+                verbose_name='Giờ hoạt động',
+            ),
         ),
         migrations.AddField(
             model_name='restaurant',
             name='phone',
-            field=models.CharField(blank=True, max_length=20, verbose_name='Số điện thoại'),
-        ),
-        migrations.AlterField(
-            model_name='restaurantintroduction',
-            name='created_at',
-            field=models.DateTimeField(auto_now_add=True, verbose_name='Tạo lúc'),
-        ),
-        migrations.AlterField(
-            model_name='restaurantintroduction',
-            name='description',
-            field=models.TextField(verbose_name='Nội dung giới thiệu'),
+            field=models.CharField(
+                blank=True,
+                max_length=20,
+                verbose_name='Số điện thoại',
+            ),
         ),
         migrations.AlterUniqueTogether(
             name='reservationitem',

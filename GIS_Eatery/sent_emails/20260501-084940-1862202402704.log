@@ -1,0 +1,86 @@
+Content-Type: multipart/alternative;
+ boundary="===============7153841974520659446=="
+MIME-Version: 1.0
+Subject: =?utf-8?b?8J+UkCBYw6FjIHRo4buxYyBlbWFpbCAtIEdJUyBFYXRlcnk=?=
+From: noreply@giseatery.com
+To: tmp_verify_20260501@example.com
+Date: Fri, 01 May 2026 01:49:40 -0000
+Message-ID: <177760018021.2588.5230158711043970289@LAPTOP-OFVNJG72>
+
+--===============7153841974520659446==
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+
+
+    
+        
+            
+                🍽️ Chào mừng đến GIS Eatery!
+                Xin chào tmp_verify_20260501,
+                Cảm ơn bạn đã đăng ký tài khoản. Vui lòng nhấp vào link dưới đây để xác thực email:
+                
+                
+                    
+                        Xác thực email
+                    
+                
+                
+                Hoặc sao chép link dưới đây vào trình duyệt:
+                
+                    http://127.0.0.1:8000/verify-email/a7d51fb60bdf192f8336620dbb3635a1706dbba7a8114bf28d3bb1be87e0ab85/
+                
+                
+                
+                    Lưu ý: Link xác thực sẽ hết hạn sau 24 giờ.
+                
+                
+                
+                
+                    Nếu bạn không đăng ký tài khoản này, vui lòng bỏ qua email này.
+                
+            
+        
+    
+    
+--===============7153841974520659446==
+Content-Type: text/html; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+
+
+    <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; border-radius: 10px;">
+                <h2 style="color: #cf2127; text-align: center;">🍽️ Chào mừng đến GIS Eatery!</h2>
+                <p>Xin chào <strong>tmp_verify_20260501</strong>,</p>
+                <p>Cảm ơn bạn đã đăng ký tài khoản. Vui lòng nhấp vào link dưới đây để xác thực email:</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="http://127.0.0.1:8000/verify-email/a7d51fb60bdf192f8336620dbb3635a1706dbba7a8114bf28d3bb1be87e0ab85/" 
+                       style="display: inline-block; padding: 12px 30px; background-color: #cf2127; 
+                              color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                        Xác thực email
+                    </a>
+                </div>
+                
+                <p>Hoặc sao chép link dưới đây vào trình duyệt:</p>
+                <p style="background-color: #e9ecef; padding: 10px; border-radius: 5px; word-break: break-all;">
+                    http://127.0.0.1:8000/verify-email/a7d51fb60bdf192f8336620dbb3635a1706dbba7a8114bf28d3bb1be87e0ab85/
+                </p>
+                
+                <p style="color: #999; font-size: 12px;">
+                    <strong>Lưu ý:</strong> Link xác thực sẽ hết hạn sau 24 giờ.
+                </p>
+                
+                <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+                <p style="color: #999; font-size: 12px; text-align: center;">
+                    Nếu bạn không đăng ký tài khoản này, vui lòng bỏ qua email này.
+                </p>
+            </div>
+        </body>
+    </html>
+    
+--===============7153841974520659446==--
+
+-------------------------------------------------------------------------------

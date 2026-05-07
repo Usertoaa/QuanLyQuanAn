@@ -7,6 +7,7 @@ from django.contrib.auth import views as auth_views
 urlpatterns = [
     # Trang chính
     path('', views.index, name='index'),
+    path('about/', views.about_page, name='about'),
     path('map/', views.user_map, name='user_map'),
     path('map/<int:pk>/', views.map_detail, name='map_detail'),
     path('my-history/', views.user_booking_history, name='user_booking_history'),
@@ -15,6 +16,7 @@ urlpatterns = [
 
     path('api/restaurants/', views.api_get_restaurants, name='api_get_restaurants'),
     path('api/nearby/', views.api_nearby_restaurants, name='api_nearby'),
+    path('api/export-nearby-excel/', views.api_export_nearby_excel, name='api_export_nearby_excel'),
     path('api/book/', views.api_book_table, name='api_book_table'),
     path('api/pickup/', views.api_pickup_order, name='api_pickup_order'),
     path('api/geocode-address/', views.api_geocode_address, name='api_geocode_address'),
@@ -23,6 +25,8 @@ urlpatterns = [
     
     # Admin URLs
     path('admin/', views.admin_dashboard, name='admin_dashboard'),
+    path('my-admin/accounts/', views.admin_user_accounts, name='admin_user_accounts'),
+    path('my-admin/accounts/<int:user_id>/<str:action>/', views.admin_user_account_action, name='admin_user_account_action'),
 
     # Quản lý quán ăn
     path('my-admin/restaurants/', views.admin_restaurant_list, name='admin_restaurant_list'),
@@ -49,6 +53,9 @@ urlpatterns = [
     path('my-admin/restaurant/<int:pk>/feedbacks/', views.admin_feedback_list, name='admin_feedback_list'),
     path('my-admin/all-feedbacks/', views.admin_all_feedbacks, name='admin_all_feedbacks'),
     path('my-admin/feedback/<int:feedback_id>/read/', views.admin_mark_feedback_as_read, name='mark_feedback_as_read'),
+    path('my-admin/feedback/<int:feedback_id>/<str:action>/', views.admin_feedback_action, name='admin_feedback_action'),
+    path('my-admin/amenities/', views.admin_amenity_list, name='admin_amenity_list'),
+    path('my-admin/amenities/<int:amenity_id>/delete/', views.admin_amenity_delete, name='admin_amenity_delete'),
 
     # Đăng ký / đăng nhập / đăng xuất
     path('register/', views.register_view, name='register'),

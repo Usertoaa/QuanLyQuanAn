@@ -24,6 +24,9 @@
         <div class="container">
             <a class="navbar-brand" href="{% url 'index' %}"><i class="fas fa-utensils"></i> BT Food</a>
             <div class="d-flex gap-2 align-items-center">
+                <a href="{% url 'about' %}" class="btn btn-outline-secondary btn-sm fw-bold">
+                    <i class="fas fa-circle-info"></i> Giới thiệu
+                </a>
                 {% if user.is_authenticated %}
                     <div class="dropdown">
                         <button class="btn btn-light dropdown-toggle border shadow-sm btn-sm" type="button" data-bs-toggle="dropdown">

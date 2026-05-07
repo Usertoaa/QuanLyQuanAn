@@ -1,5 +1,7 @@
 from django.contrib.gis.db import models
 from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
 
 
 class Restaurant(models.Model):
@@ -81,6 +83,17 @@ class RestaurantImage(models.Model):
 
 
 class Table(models.Model):
+    BOOKING_DURATION_MINUTES = 90
+    CLEANING_DURATION_MINUTES = 15
+    ACTIVE_RESERVATION_STATUSES = ('pending', 'confirmed', 'waiting')
+    STATUS_LABELS = {
+        'available': 'Trống',
+        'reserved': 'Đã đặt',
+        'in_use': 'Đang sử dụng',
+        'cleaning': 'Đang dọn dẹp',
+        'inactive': 'Không hoạt động',
+    }
+
     restaurant = models.ForeignKey(
         Restaurant,
         on_delete=models.CASCADE,
@@ -97,6 +110,36 @@ class Table(models.Model):
 
     def __str__(self):
         return f"{self.table_number} - {self.restaurant.name}"
+
+    def get_current_status_code(self, reference_time=None):
+        now = reference_time or timezone.now()
+        if not self.is_available:
+            return 'inactive'
+
+        active_reservations = list(
+            self.reservations.filter(status__in=self.ACTIVE_RESERVATION_STATUSES).order_by('booking_time')
+        )
+
+        booking_duration = timedelta(minutes=self.BOOKING_DURATION_MINUTES)
+        cleaning_duration = timedelta(minutes=self.CLEANING_DURATION_MINUTES)
+
+        for reservation in active_reservations:
+            start = reservation.booking_time
+            end = start + booking_duration
+            cleaning_end = end + cleaning_duration
+
+            if start <= now < end:
+                return 'in_use'
+            if end <= now < cleaning_end:
+                return 'cleaning'
+
+        if any(reservation.booking_time > now for reservation in active_reservations):
+            return 'reserved'
+
+        return 'available'
+
+    def get_current_status_display(self, reference_time=None):
+        return self.STATUS_LABELS.get(self.get_current_status_code(reference_time), 'Trống')
 
 
 class Reservation(models.Model):

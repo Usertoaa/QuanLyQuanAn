@@ -1,135 +1,141 @@
 {% extends 'restaurants/base_admin.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2 class="mb-3">
-            <i class="fas fa-comments"></i> Tất cả phản hồi
-        </h2>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h2 class="mb-0"><i class="fas fa-comments"></i> Quản Lý Đánh Giá</h2>
+    <div class="small text-muted">
+        Tổng: <strong>{{ total_feedbacks }}</strong> |
+        Chưa đọc: <strong>{{ unread_feedbacks }}</strong>
     </div>
 </div>
 
-<!-- Filter Section -->
-<div class="card shadow-sm border-0 mb-4">
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="card mb-3">
     <div class="card-body">
-        <form method="GET" class="row gap-3 align-items-end">
-            <!-- Filter by Restaurant -->
-            <div class="col-md-4">
-                <label class="form-label fw-bold">Quán ăn</label>
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-lg-3 col-md-6">
+                <label class="form-label mb-1">Tìm kiếm</label>
+                <input type="text" class="form-control" name="q" value="{{ query }}" placeholder="Tên khách, email, nội dung...">
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <label class="form-label mb-1">Quán ăn</label>
                 <select name="restaurant_id" class="form-select">
-                    <option value="">-- Tất cả quán ăn --</option>
+                    <option value="">Tất cả quán</option>
                     {% for rest in all_restaurants %}
-                        <option value="{{ rest.id }}" {% if restaurant_id == rest.id|stringformat:"s" %}selected{% endif %}>
+                        <option value="{{ rest.id }}" {% if restaurant_id == rest.id|stringformat:'s' %}selected{% endif %}>
                             {{ rest.name }}
                         </option>
                     {% endfor %}
                 </select>
             </div>
-
-            <!-- Filter by Rating -->
-            <div class="col-md-4">
-                <label class="form-label fw-bold">Đánh giá</label>
+            <div class="col-lg-2 col-md-6">
+                <label class="form-label mb-1">Số sao</label>
                 <select name="rating" class="form-select">
-                    <option value="">-- Tất cả đánh giá --</option>
-                    <option value="1" {% if rating == "1" %}selected{% endif %}>⭐ Rất tệ</option>
-                    <option value="2" {% if rating == "2" %}selected{% endif %}>⭐⭐ Tệ</option>
-                    <option value="3" {% if rating == "3" %}selected{% endif %}>⭐⭐⭐ Bình thường</option>
-                    <option value="4" {% if rating == "4" %}selected{% endif %}>⭐⭐⭐⭐ Tốt</option>
-                    <option value="5" {% if rating == "5" %}selected{% endif %}>⭐⭐⭐⭐⭐ Tuyệt vời</option>
+                    <option value="">Tất cả</option>
+                    <option value="1" {% if rating == "1" %}selected{% endif %}>1 sao</option>
+                    <option value="2" {% if rating == "2" %}selected{% endif %}>2 sao</option>
+                    <option value="3" {% if rating == "3" %}selected{% endif %}>3 sao</option>
+                    <option value="4" {% if rating == "4" %}selected{% endif %}>4 sao</option>
+                    <option value="5" {% if rating == "5" %}selected{% endif %}>5 sao</option>
                 </select>
             </div>
-
-            <!-- Buttons -->
-            <div class="col-md-4 d-flex gap-2">
+            <div class="col-lg-2 col-md-6">
+                <label class="form-label mb-1">Trạng thái</label>
+                <select name="read_status" class="form-select">
+                    <option value="all" {% if read_status == "all" %}selected{% endif %}>Tất cả</option>
+                    <option value="unread" {% if read_status == "unread" %}selected{% endif %}>Chưa đọc</option>
+                    <option value="read" {% if read_status == "read" %}selected{% endif %}>Đã đọc</option>
+                </select>
+            </div>
+            <div class="col-lg-2 col-md-12 d-flex gap-2">
                 <button type="submit" class="btn btn-primary flex-grow-1">
-                    <i class="fas fa-search"></i> Lọc
+                    <i class="fas fa-filter"></i> Lọc
                 </button>
-                <a href="?" class="btn btn-outline-secondary">
-                    <i class="fas fa-redo"></i> Reset
+                <a href="{% url 'admin_all_feedbacks' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-undo"></i>
                 </a>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Stats -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-light">
-            <div class="card-body text-center">
-                <h3 class="mb-0 text-primary">{{ feedbacks.count }}</h3>
-                <small class="text-muted">Tổng phản hồi</small>
-            </div>
-        </div>
-    </div>
-    {% if restaurant_name %}
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-light">
-            <div class="card-body text-center">
-                <h5 class="mb-0 text-danger">{{ restaurant_name }}</h5>
-                <small class="text-muted">Quán được chọn</small>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-</div>
-
-<!-- Feedbacks List -->
-{% if feedbacks %}
-    <div class="row gap-3">
-        {% for feedback in feedbacks %}
-        <div class="col-12">
-            <div class="card shadow-sm border-0 {% if not feedback.is_read %}border-left-danger{% endif %}">
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-8">
-                            <h5 class="card-title mb-1">
-                                {% if not feedback.is_read %}
-                                    <span class="badge bg-danger me-2">CHƯA XEM</span>
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Khách hàng</th>
+                        <th>Quán</th>
+                        <th>Đánh giá</th>
+                        <th>Nội dung</th>
+                        <th>Thời gian</th>
+                        <th>Trạng thái</th>
+                        <th class="text-end">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for feedback in feedbacks %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold">{{ feedback.customer_name }}</div>
+                            <small class="text-muted">{{ feedback.customer_email }}</small>
+                        </td>
+                        <td>
+                            <a href="{% url 'admin_feedback_list' feedback.restaurant.id %}" class="text-decoration-none">
+                                {{ feedback.restaurant.name }}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge bg-warning text-dark">{{ feedback.rating }}/5</span>
+                        </td>
+                        <td style="max-width: 360px;">
+                            {{ feedback.message|truncatechars:120 }}
+                        </td>
+                        <td>
+                            <div>{{ feedback.created_at|date:"d/m/Y" }}</div>
+                            <small class="text-muted">{{ feedback.created_at|date:"H:i" }}</small>
+                        </td>
+                        <td>
+                            {% if feedback.is_read %}
+                                <span class="badge bg-success">Đã đọc</span>
+                            {% else %}
+                                <span class="badge bg-danger">Chưa đọc</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1">
+                                {% if feedback.is_read %}
+                                    <a href="{% url 'admin_feedback_action' feedback.id 'unread' %}" class="btn btn-sm btn-outline-secondary">Chưa đọc</a>
+                                {% else %}
+                                    <a href="{% url 'admin_feedback_action' feedback.id 'read' %}" class="btn btn-sm btn-outline-primary">Đã đọc</a>
                                 {% endif %}
-                                {{ feedback.customer_name }}
-                            </h5>
-                            <small class="text-muted d-block mb-2">
-                                <i class="fas fa-envelope"></i> {{ feedback.customer_email }}<br>
-                                <i class="fas fa-utensils"></i> <a href="{% url 'restaurant_detail' feedback.restaurant.id %}" class="text-decoration-none">{{ feedback.restaurant.name }}</a><br>
-                                <i class="fas fa-calendar"></i> {{ feedback.created_at|date:"d/m/Y H:i" }}
-                            </small>
-                            <p class="card-text mt-3 mb-0">{{ feedback.message }}</p>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="text-end">
-                                <div class="mb-3">
-                                    <span class="badge bg-warning text-dark fs-6 px-3 py-2">
-                                        {{ feedback.get_rating_display }}
-                                    </span>
-                                </div>
-                                {% if not feedback.is_read %}
-                                    <a href="{% url 'mark_feedback_as_read' feedback.id %}" class="btn btn-sm btn-outline-primary d-block mb-2">
-                                        <i class="fas fa-eye"></i> Đánh dấu xem
-                                    </a>
-                                {% endif %}
-                                <a href="{% url 'admin_feedback_list' feedback.restaurant.id %}" class="btn btn-sm btn-outline-secondary">
-                                    <i class="fas fa-reply"></i> Xem chi tiết
+                                <a
+                                    href="{% url 'admin_feedback_action' feedback.id 'delete' %}"
+                                    class="btn btn-sm btn-outline-danger"
+                                    onclick="return confirm('Xóa đánh giá này?')"
+                                >
+                                    Xóa
                                 </a>
                             </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">Không có đánh giá nào.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        {% endfor %}
     </div>
-{% else %}
-    <div class="card shadow-sm border-0 text-center py-5">
-        <i class="fas fa-comment-dots text-muted" style="font-size: 3rem;"></i>
-        <p class="text-muted mt-3">Không tìm thấy phản hồi nào.</p>
-        <a href="?" class="btn btn-outline-primary mt-2">Xem tất cả</a>
-    </div>
-{% endif %}
-
-<style>
-    .border-left-danger {
-        border-left: 4px solid #dc3545 !important;
-    }
-</style>
+</div>
 {% endblock %}

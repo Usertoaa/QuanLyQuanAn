@@ -28,8 +28,12 @@ class RestaurantAdmin(admin.GISModelAdmin):
 
 @admin.register(Table)
 class TableAdmin(admin.ModelAdmin):
-    list_display = ('restaurant', 'table_number', 'capacity', 'is_available')
+    list_display = ('restaurant', 'table_number', 'capacity', 'is_available', 'current_status')
     list_filter = ('restaurant', 'is_available')
+
+    def current_status(self, obj):
+        return obj.get_current_status_display()
+    current_status.short_description = 'Trạng thái hiện tại'
 
 @admin.register(Reservation)
 class ReservationAdmin(admin.ModelAdmin):

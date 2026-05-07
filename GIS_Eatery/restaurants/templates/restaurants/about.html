@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giới thiệu - Toan Ken Food</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #cf2127;
+            --primary-dark: #991a20;
+            --bg-deep: #ffffff;
+            --bg-soft: #ffffff;
+            --text-soft: #5f6b7a;
+        }
+
+        body {
+            background: #f5f7fb;
+            color: #1f2937;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.96);
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+        }
+
+        .navbar-brand {
+            color: #ff4a55 !important;
+            font-weight: 800;
+            font-size: 2rem;
+            letter-spacing: 0.2px;
+        }
+
+        .hero {
+            padding: 86px 0 66px;
+            background:
+                linear-gradient(110deg, rgba(255, 255, 255, 0.88) 24%, rgba(255, 255, 255, 0.72) 100%),
+                url('https://images.unsplash.com/photo-1498654896293-37aacf113fd9?q=80&w=2070&auto=format&fit=crop') center/cover;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .hero-title {
+            font-size: clamp(2rem, 4.6vw, 3.3rem);
+            font-weight: 900;
+            line-height: 1.15;
+            margin-bottom: 1rem;
+            color: #0f172a;
+        }
+
+        .hero-subtitle {
+            font-size: 1.1rem;
+            color: #1e293b;
+            max-width: 780px;
+            margin-bottom: 2rem;
+        }
+
+        .hero-actions .btn {
+            padding: 0.72rem 1.2rem;
+            font-weight: 700;
+            border-radius: 10px;
+        }
+
+        .section-wrap {
+            padding: 58px 0;
+        }
+
+        .section-title {
+            font-size: 1.95rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            color: #0f172a;
+        }
+
+        .section-subtitle {
+            color: var(--text-soft);
+            margin-bottom: 1.6rem;
+        }
+
+        .stat-card {
+            background: #ffffff;
+            border: 1px solid #dce4ef;
+            border-radius: 14px;
+            padding: 1.05rem;
+            text-align: center;
+            height: 100%;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .stat-number {
+            color: #ff575f;
+            font-weight: 800;
+            font-size: 1.95rem;
+            line-height: 1;
+            margin-bottom: 0.35rem;
+        }
+
+        .stat-label {
+            color: #475569;
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .intro-box {
+            background: #ffffff;
+            border: 1px solid #dce4ef;
+            border-left: 5px solid var(--primary-color);
+            border-radius: 14px;
+            padding: 1.35rem 1.3rem;
+            line-height: 1.8;
+            color: #334155;
+        }
+
+        .feature-card {
+            background: var(--bg-soft);
+            border: 1px solid #dce4ef;
+            border-radius: 14px;
+            padding: 1.2rem 1.1rem;
+            height: 100%;
+            transition: transform 0.22s ease, box-shadow 0.22s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 26px rgba(15, 23, 42, 0.12);
+        }
+
+        .feature-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(207, 33, 39, 0.12);
+            color: var(--primary-color);
+            font-size: 1.2rem;
+            margin-bottom: 0.85rem;
+        }
+
+        .feature-title {
+            font-weight: 800;
+            font-size: 1.1rem;
+            margin-bottom: 0.45rem;
+        }
+
+        .feature-desc {
+            margin-bottom: 0;
+            color: #475569;
+        }
+
+        .step-item {
+            background: #ffffff;
+            border: 1px solid #dce4ef;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 0.8rem;
+            display: flex;
+            gap: 0.8rem;
+            align-items: flex-start;
+        }
+
+        .step-badge {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .cta-box {
+            margin-top: 1.1rem;
+            background: linear-gradient(135deg, #bf1f26, #8f171e);
+            border-radius: 16px;
+            padding: 1.45rem 1.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .cta-title {
+            font-size: 1.4rem;
+            font-weight: 900;
+            margin-bottom: 0.5rem;
+        }
+
+        .cta-desc {
+            color: #ffe6e8;
+            margin-bottom: 1rem;
+        }
+
+        .cta-box .btn {
+            font-weight: 800;
+            border-radius: 10px;
+            padding: 0.65rem 1.05rem;
+        }
+
+        footer {
+            border-top: 1px solid #e2e8f0;
+            color: #64748b;
+            background: #ffffff;
+            margin-top: 38px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'index' %}">
+                <i class="fas fa-utensils"></i> Toan Ken Food
+            </a>
+
+            <div class="d-flex gap-2 align-items-center">
+                <a href="{% url 'about' %}" class="btn btn-danger btn-sm fw-bold">
+                    <i class="fas fa-circle-info"></i> Giới thiệu
+                </a>
+                <a href="{% url 'user_map' %}" class="btn btn-outline-secondary btn-sm fw-bold">
+                    <i class="fas fa-map"></i> Bản đồ
+                </a>
+
+                {% if user.is_authenticated %}
+                    <div class="dropdown">
+                        <button class="btn btn-light dropdown-toggle border border-secondary-subtle shadow-sm btn-sm" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle"></i> Xin chào, <b>{{ user.username }}</b>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            {% if user.is_superuser %}
+                            <li><a class="dropdown-item" href="{% url 'admin_dashboard' %}"><i class="fas fa-cog text-primary"></i> Trang Quản trị</a></li>
+                            {% endif %}
+                            <li><a class="dropdown-item" href="{% url 'user_booking_history' %}"><i class="fas fa-history text-success"></i> Lịch sử đặt bàn</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form action="{% url 'logout' %}" method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item text-danger"><i class="fas fa-sign-out-alt"></i> Đăng xuất</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                {% else %}
+                    <a href="{% url 'login' %}" class="btn btn-outline-secondary btn-sm fw-bold">
+                        <i class="fas fa-sign-in-alt"></i> Đăng nhập
+                    </a>
+                    <a href="{% url 'register' %}" class="btn btn-danger btn-sm fw-bold">
+                        <i class="fas fa-user-plus"></i> Đăng ký
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="container">
+            <h1 class="hero-title">Nền tảng tìm quán ăn, đặt bàn và chỉ đường tại TP.HCM</h1>
+            <p class="hero-subtitle">
+                Toan Ken Food giúp bạn khám phá quán ăn theo vị trí, lọc theo tiện ích, xem menu trực quan,
+                đặt bàn nhanh và gửi phản hồi dễ dàng trong một luồng trải nghiệm duy nhất.
+            </p>
+            <div class="hero-actions d-flex flex-wrap gap-2">
+                <a href="{% url 'index' %}" class="btn btn-danger">
+                    <i class="fas fa-utensils"></i> Khám phá quán ăn
+                </a>
+                <a href="{% url 'user_map' %}" class="btn btn-outline-dark">
+                    <i class="fas fa-route"></i> Mở bản đồ thông minh
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="section-wrap">
+        <div class="container">
+            <h2 class="section-title">Toan Ken Food Có Gì?</h2>
+            <p class="section-subtitle">Hệ thống được xây dựng để tối ưu việc chọn quán và ra quyết định nhanh.</p>
+
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-4 col-xl">
+                    <div class="stat-card">
+                        <div class="stat-number">{{ total_restaurants }}</div>
+                        <div class="stat-label">Quán ăn đang hiển thị</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-xl">
+                    <div class="stat-card">
+                        <div class="stat-number">{{ total_dishes }}</div>
+                        <div class="stat-label">Món ăn trong hệ thống</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-xl">
+                    <div class="stat-card">
+                        <div class="stat-number">{{ total_reservations }}</div>
+                        <div class="stat-label">Lượt đặt bàn/đặt trước</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-xl">
+                    <div class="stat-card">
+                        <div class="stat-number">{{ total_feedbacks }}</div>
+                        <div class="stat-label">Phản hồi từ khách hàng</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-xl">
+                    <div class="stat-card">
+                        <div class="stat-number">{{ total_users }}</div>
+                        <div class="stat-label">Tài khoản đang hoạt động</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="intro-box mb-4">
+                <strong>Toan Ken Food</strong> là dự án quản lý và khám phá quán ăn theo định hướng GIS.
+                Người dùng có thể tìm kiếm theo tên quán/món, xem quán gần nhất, lọc tiện ích (wifi, chỗ đậu xe, điều hòa...),
+                xem chi tiết menu, đặt bàn hoặc đặt trước đến lấy món, đồng thời nhận chỉ đường trực quan ngay trên bản đồ.
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6 col-xl-3">
+                    <div class="feature-card">
+                        <span class="feature-icon"><i class="fas fa-magnifying-glass-location"></i></span>
+                        <h3 class="feature-title">Tìm quán theo vị trí</h3>
+                        <p class="feature-desc">Quét bán kính quanh bạn, tìm quán gần nhất và xem khoảng cách thực tế.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="feature-card">
+                        <span class="feature-icon"><i class="fas fa-map-location-dot"></i></span>
+                        <h3 class="feature-title">Chỉ đường thông minh</h3>
+                        <p class="feature-desc">Điều hướng theo tuyến đường, có thời gian ước tính để ra quyết định nhanh.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="feature-card">
+                        <span class="feature-icon"><i class="fas fa-calendar-check"></i></span>
+                        <h3 class="feature-title">Đặt bàn/đặt trước</h3>
+                        <p class="feature-desc">Đặt bàn theo khung giờ hoặc đặt món trước để đến lấy nhanh tại quán.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="feature-card">
+                        <span class="feature-icon"><i class="fas fa-comment-dots"></i></span>
+                        <h3 class="feature-title">Phản hồi minh bạch</h3>
+                        <p class="feature-desc">Thu thập đánh giá từ người dùng và quản trị phản hồi ngay trong dashboard.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section-wrap pt-0">
+        <div class="container">
+            <h2 class="section-title">Cách Dùng Nhanh</h2>
+            <p class="section-subtitle">Bốn bước để bắt đầu khám phá và đặt trải nghiệm ăn uống phù hợp.</p>
+
+            <div class="step-item">
+                <span class="step-badge">1</span>
+                <div>
+                    <strong>Mở trang chủ và tìm kiếm</strong><br>
+                    Nhập tên quán hoặc món ăn, kết hợp tab "Gần nhất" / "Rẻ nhất" để lọc nhanh.
+                </div>
+            </div>
+            <div class="step-item">
+                <span class="step-badge">2</span>
+                <div>
+                    <strong>Vào trang chi tiết quán</strong><br>
+                    Xem mô tả, menu, tiện ích và đánh giá từ khách hàng trước khi quyết định.
+                </div>
+            </div>
+            <div class="step-item">
+                <span class="step-badge">3</span>
+                <div>
+                    <strong>Dùng chỉ đường trên bản đồ</strong><br>
+                    Bấm "Chỉ đường tới quán" để mở map full màn hình và nhận hướng đi từng bước.
+                </div>
+            </div>
+            <div class="step-item mb-0">
+                <span class="step-badge">4</span>
+                <div>
+                    <strong>Đặt bàn hoặc gửi phản hồi</strong><br>
+                    Hoàn tất trải nghiệm bằng đặt chỗ, đặt trước món và gửi góp ý giúp hệ thống cải thiện.
+                </div>
+            </div>
+
+            <div class="cta-box">
+                <div class="cta-title">Sẵn sàng khám phá quán ăn hôm nay?</div>
+                <p class="cta-desc">Truy cập ngay trang chính để xem quán mới, quán gần bạn và bắt đầu đặt trải nghiệm ăn uống.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'index' %}" class="btn btn-light text-danger">
+                        <i class="fas fa-house"></i> Về trang chủ
+                    </a>
+                    <a href="{% url 'user_map' %}" class="btn btn-outline-light">
+                        <i class="fas fa-map"></i> Mở bản đồ
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="py-4">
+        <div class="container text-center">
+            <small>© 2026 Toan Ken Food. Nền tảng khám phá ẩm thực ứng dụng GIS.</small>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

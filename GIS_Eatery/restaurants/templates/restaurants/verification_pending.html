@@ -229,8 +229,24 @@
 
         <div class="email-box">
             <div class="label">📧 Email Đã Gửi Tới:</div>
-            <p id="userEmail">{{ user.email }}</p>
+            <p id="userEmail">{{ pending_email|default:"(chưa có email)" }}</p>
         </div>
+
+        {% if is_console_email_backend %}
+        <div class="check-spam" style="margin-top: 0; margin-bottom: 15px;">
+            <i class="fas fa-terminal"></i>
+            <strong>Đang chạy local không dùng Mailtrap:</strong>
+            Link xác thực đã được in ở terminal chạy `runserver`.
+        </div>
+        {% endif %}
+
+        {% if is_file_email_backend %}
+        <div class="check-spam" style="margin-top: 0; margin-bottom: 15px;">
+            <i class="fas fa-folder-open"></i>
+            <strong>Đang chạy local không dùng Mailtrap:</strong>
+            Email xác thực được lưu tại thư mục `GIS_Eatery/sent_emails/`.
+        </div>
+        {% endif %}
 
         <div class="alert-box">
             <i class="fas fa-info-circle"></i>

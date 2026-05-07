@@ -1,0 +1,219 @@
+{% extends 'restaurants/base_admin.html' %}
+
+{% block content %}
+<style>
+    .icon-preview {
+        width: 44px;
+        height: 44px;
+        border: 1px dashed #6c757d;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        background: #0f141b;
+    }
+    .icon-preset-list {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+    }
+    .icon-preset-btn {
+        border: 1px solid #495057;
+        border-radius: 10px;
+        background: #111922;
+        color: #e9ecef;
+        padding: 8px 6px;
+        font-size: 0.8rem;
+        text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+    .icon-preset-btn.active,
+    .icon-preset-btn:hover {
+        border-color: #0d6efd;
+        background: #16263d;
+    }
+</style>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h2 class="mb-0"><i class="fas fa-tags"></i> Quan Ly Tien Ich</h2>
+    <div class="small text-muted">Tong danh muc: <strong>{{ amenities.count }}</strong></div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                {% if edit_item %}Sua Tien Ich{% else %}Them Tien Ich{% endif %}
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+                    <input type="hidden" name="amenity_id" value="{{ edit_item.id|default:'' }}">
+
+                    <div class="mb-3">
+                        <label class="form-label">Ten tien ich</label>
+                        <input type="text" class="form-control" name="name" required value="{{ edit_item.name|default:'' }}" placeholder="Vi du: Free Wifi">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Icon (Font Awesome)</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="iconInput"
+                                name="icon"
+                                required
+                                value="{{ edit_item.icon|default:'fas fa-wifi' }}"
+                                placeholder="Vi du: fas fa-wifi"
+                                list="iconPresetList"
+                            >
+                            <span class="icon-preview">
+                                <i id="iconPreview" class="{{ edit_item.icon|default:'fas fa-wifi' }}"></i>
+                            </span>
+                        </div>
+                        <datalist id="iconPresetList">
+                            {% for item in icon_presets %}
+                                <option value="{{ item.icon }}">{{ item.label }}</option>
+                            {% endfor %}
+                        </datalist>
+                        <small class="text-muted">Co the tu nhap hoac bam chon icon mau ben duoi.</small>
+                        <div class="icon-preset-list">
+                            {% for item in icon_presets %}
+                                <button
+                                    type="button"
+                                    class="icon-preset-btn"
+                                    data-icon="{{ item.icon }}"
+                                    title="{{ item.icon }}"
+                                >
+                                    <i class="{{ item.icon }}"></i>
+                                    <span>{{ item.label }}</span>
+                                </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Thu tu hien thi</label>
+                        <input type="number" class="form-control" name="order" value="{{ edit_item.order|default:0 }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Mo ta</label>
+                        <textarea class="form-control" name="description" rows="3" placeholder="Mo ta ngan...">{{ edit_item.description|default:'' }}</textarea>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-danger">
+                            {% if edit_item %}Cap nhat{% else %}Them moi{% endif %}
+                        </button>
+                        {% if edit_item %}
+                            <a href="{% url 'admin_amenity_list' %}" class="btn btn-outline-secondary">Huy sua</a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">Danh sach tien ich</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Thu tu</th>
+                                <th>Tien ich</th>
+                                <th>Icon</th>
+                                <th>Dang su dung</th>
+                                <th class="text-end">Hanh dong</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for amenity in amenities %}
+                            <tr>
+                                <td>{{ amenity.order }}</td>
+                                <td>
+                                    <div class="fw-bold">{{ amenity.name }}</div>
+                                    <small class="text-muted">{{ amenity.description|default:"-"|truncatechars:70 }}</small>
+                                </td>
+                                <td>
+                                    {% if amenity.icon %}
+                                        <i class="{{ amenity.icon }} fs-5" title="{{ amenity.icon }}"></i>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">{{ amenity.used_count }}</span>
+                                </td>
+                                <td class="text-end">
+                                    <a href="{% url 'admin_amenity_list' %}?edit={{ amenity.id }}" class="btn btn-sm btn-outline-primary">Sua</a>
+                                    <a
+                                        href="{% url 'admin_amenity_delete' amenity.id %}"
+                                        class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('Xoa tien ich {{ amenity.name }}?')"
+                                    >
+                                        Xoa
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">Chua co tien ich nao.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const iconInput = document.getElementById('iconInput');
+        const iconPreview = document.getElementById('iconPreview');
+        const presetButtons = document.querySelectorAll('.icon-preset-btn');
+
+        if (!iconInput || !iconPreview) return;
+
+        function updatePreview() {
+            const iconClass = (iconInput.value || '').trim() || 'fas fa-question';
+            iconPreview.className = iconClass;
+            presetButtons.forEach((btn) => {
+                const matched = btn.dataset.icon === iconClass;
+                btn.classList.toggle('active', matched);
+            });
+        }
+
+        presetButtons.forEach((btn) => {
+            btn.addEventListener('click', function () {
+                iconInput.value = btn.dataset.icon || '';
+                updatePreview();
+            });
+        });
+
+        iconInput.addEventListener('input', updatePreview);
+        updatePreview();
+    })();
+</script>
+{% endblock %}
